@@ -1,0 +1,3 @@
+{
+    "ignore": ["*.json", "client.js", "public/*", "public.backup/*", "test_site/*", "assets/*"]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "ContentPro",
+  "version": "1.0.0",
+  "description": "Cisco NetAcad Content Provider (ContentPro) | Middleware for NetAcad",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node main.js",
+    "dev": "nodemon main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "follow-redirects": "^1.15.1",
+    "mime-types": "^2.1.35",
+    "nexe": "^4.0.0-rc.1",
+    "open": "^8.4.0",
+    "socket.io": "^4.7.2",
+    "socket.io-client": "^4.7.2"
+  },
+  "bin": "main.js",
+  "devDependencies": {
+    "pkg": "^5.8.0"
+  },
+  "pkg": {
+    "assets": [
+      "public/courses.json"
+    ]
+  }
+}

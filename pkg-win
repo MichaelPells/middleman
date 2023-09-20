@@ -1,0 +1,1 @@
+pkg . --build --target node14-win
