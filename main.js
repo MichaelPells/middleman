@@ -19,6 +19,7 @@ const { Server } = require("socket.io");
 const child_process = require('child_process');
 
 const run = require("./executors/run");
+const close = require("./executors/close");
 
 var profiles = require("./profiles.json");
 
@@ -410,7 +411,12 @@ function runner (profile) {
             shell: true,
         });
 
-        callbacks[profile] = function (socket) {   
+        shells[profile].exit = function () {
+            shells[profile].kill();
+            interface.to(sockets[profile].id).emit("exit");
+        };
+
+        callbacks[profile] = function (socket) { 
             sockets[profile] = socket;
 
             log(`${profile} is online.\n`);
@@ -422,8 +428,6 @@ function runner (profile) {
             servers[profile].once("close", () => {
                 try {log("Server Closed")} catch (e) {}
                 try {sockets[profile].disconnect(true)} catch (e) {}
-
-                console.log("Server is closed")
             });
             
             // When Shell is closed
@@ -431,26 +435,30 @@ function runner (profile) {
                 try {servers[profile].close()} catch (e) {}
                 try {sockets[profile].disconnect(true)} catch (e) {}
                 if (mode == "execution") {process.exit()}
-
-                console.log("Shell is closed")
             });
 
             // When Socket is closed
             sockets[profile].once("disconnect", (_) => {
                 try {servers[profile].close()} catch (e) {}
-                try {shells[profile].kill()} catch (e) {}
-
-                console.log("Socket is closed")
+                try {shells[profile].exit()} catch (e) {}
             });
         };
     });
 }
 
-var statement = process.argv.slice(1);
-var args = [];
-var options = [];
+function closer (profile) {
+    try {servers[profile].close()} catch (e) {}
+    try {shells[profile].exit()} catch (e) {}
+    // try {sockets[profile].disconnect(true)} catch (e) {}
+} 
 
-function process_argv () {
+var args, options, parsed_args;
+
+function process_argv (statement) {
+    args = [];
+    options = [];
+    parsed_args = 0;
+
     for (arg of statement) {
         if (arg == "") {}
         else if (!arg.startsWith("-")) {
@@ -460,15 +468,19 @@ function process_argv () {
         }
     }
 }
-process_argv();
-
-var parsed_args = 0;
+process_argv(process.argv.slice(1));
 
 function next_arg () {
     if (!parsed_args) {
         var root_arguments = [
+            // Top-level Commands
             "run",
+            "close",
+
+            // profiles
             ...Object.keys(profiles),
+
+            // aliases
             "all"
         ];
 
@@ -484,21 +496,42 @@ function next_arg () {
             i = parsed_args;
             parsed_args++;
             return args[i];
-        } else if (args[parsed_args] === "") {
-            parsed_args++;
-            return next_arg();
         } else {
             return null;
         }
     }
 }
 
+function revert_parsed_args () {
+    parsed_args--;
+}
+
 function selector (arg) {
-    // run
-    if (["run", ...Object.keys(profiles), "all"].includes(arg)) {
+    // // command: run
+    if (arg == "run") {
         return {
             function: run,
-            args: [arg, next_arg, options, runner, Object.keys(profiles)]
+            args: [next_arg, options, runner, Object.keys(profiles)]
+        };
+    } else if (Object.keys(profiles).includes(arg)) {
+        revert_parsed_args();
+        return {
+            function: run,
+            args: [next_arg, options, runner, Object.keys(profiles)]
+        };
+    } else if (arg == "all") {
+        revert_parsed_args();
+        return {
+            function: run,
+            args: [next_arg, options, runner, Object.keys(profiles)]
+        };
+    }
+
+    // // command: close
+    else if (arg == "close") {
+        return {
+            function: close,
+            args: [next_arg, options, closer, Object.keys(profiles)]
         };
     }
 }
@@ -515,16 +548,11 @@ if (command) {
 
     function REPL (input = null) {
         if (input) {
-            statement = input.split(" ");
-            process_argv();
-            
-            parsed_args = 0;
+            process_argv(input.split(" "));
 
             command = next_arg();
             var executor = selector(command);
             executor.function(...executor.args);
-
-            console.log(input)
         }
 
         process.stdout.write("\n>>> ");
@@ -533,7 +561,7 @@ if (command) {
 
     process.stdin.on("data", (input) => {
         REPL(input.toString().trim());
-    })
+    });
 }
 
 

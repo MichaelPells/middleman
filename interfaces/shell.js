@@ -7,10 +7,11 @@ const { io } = require("socket.io-client");
 
 const development = true;
 
-recent_error = [];
-error_new_state = false;
-last_log_length = 0;
-last_error_code = null;
+var recent_error = [];
+var error_new_state = false;
+var last_log_length = 0;
+var last_error_code = null;
+
 const clearPrevError = () => {
 	var dy = Math.ceil(last_log_length / process.stdout.columns);
 	process.stdout.moveCursor(0, -dy);
@@ -60,6 +61,8 @@ setInterval(error_handler, 0)
 const socket = io.connect("http://localhost:3000");
 
 socket.once("init", (socket_id) => socket.emit("init", socket_id, profile));
+
+socket.once("exit", () => process.exit(0));
 
 socket.once("disconnect", (reason) => {
 	console.log("An error occured: Server crashed. Please close this window and restart application.")

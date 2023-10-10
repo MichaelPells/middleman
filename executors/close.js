@@ -1,4 +1,4 @@
-module.exports =  function run (next_arg, options, runner, profiles) {
+module.exports =  function close (next_arg, options, closer, profiles) {
     var given = [];
     var profile = next_arg();
     while (profile !== null) {
@@ -11,7 +11,7 @@ module.exports =  function run (next_arg, options, runner, profiles) {
 
     for (profile of given) {
         if (profiles.includes(profile)) {
-            runner(profile);
+            closer(profile);
         }
     }
 }
