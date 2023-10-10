@@ -1,5 +1,5 @@
 SET ["PROFILE_NAME"] = "redirector";
-SET ["URL"] = "https://contenthub.netacad.com";
+SET ["REMOTE_URL"] = "https://contenthub.netacad.com";
 SET ["HOST_ADDRESS"] = "localhost"
 SET ["PORT_NUMBER"] = 5000;
 SET ["MAX_LOAD_RESOURCES_TRIALS"] = 1;

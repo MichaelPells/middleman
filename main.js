@@ -20,8 +20,9 @@ const child_process = require('child_process');
 
 const run = require("./executors/run");
 const close = require("./executors/close");
+const install = require("./executors/install");
 
-var profiles = require("./profiles.json");
+global.profiles = require("./profiles.json");
 
 const SETTINGS = {};
 const servers = {};
@@ -383,7 +384,7 @@ function runner (profile) {
     var settings = {...SETTINGS[profile]};
 
     // PROFILE SETTINGS
-    var remote_server_address = settings.URL;
+    var remote_server_address = settings.REMOTE_URL;
     var host = settings.HOST_ADDRESS || "localhost";
     var port = settings.PORT_NUMBER;
     var max_load_resources_trials = settings.MAX_LOAD_RESOURCES_TRIALS || 1;
@@ -456,7 +457,7 @@ var args, options, parsed_args;
 
 function process_argv (statement) {
     args = [];
-    options = [];
+    options = {};
     parsed_args = 0;
 
     for (arg of statement) {
@@ -464,7 +465,9 @@ function process_argv (statement) {
         else if (!arg.startsWith("-")) {
             args.push(arg);
         } else {
-            options.push(arg);
+            var option = arg.split("=")[0];
+            var value = arg.split("=")[1];
+            options[option] = value;
         }
     }
 }
@@ -476,6 +479,7 @@ function next_arg () {
             // Top-level Commands
             "run",
             "close",
+            "install",
 
             // profiles
             ...Object.keys(profiles),
@@ -511,19 +515,19 @@ function selector (arg) {
     if (arg == "run") {
         return {
             function: run,
-            args: [next_arg, options, runner, Object.keys(profiles)]
+            args: [next_arg, options, runner]
         };
     } else if (Object.keys(profiles).includes(arg)) {
         revert_parsed_args();
         return {
             function: run,
-            args: [next_arg, options, runner, Object.keys(profiles)]
+            args: [next_arg, options, runner]
         };
     } else if (arg == "all") {
         revert_parsed_args();
         return {
             function: run,
-            args: [next_arg, options, runner, Object.keys(profiles)]
+            args: [next_arg, options, runner]
         };
     }
 
@@ -531,7 +535,15 @@ function selector (arg) {
     else if (arg == "close") {
         return {
             function: close,
-            args: [next_arg, options, closer, Object.keys(profiles)]
+            args: [next_arg, options, closer]
+        };
+    }
+
+    // // command: install
+    else if (arg == "install") {
+        return {
+            function: install,
+            args: [next_arg, options]
         };
     }
 }

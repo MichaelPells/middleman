@@ -1,5 +1,5 @@
 SET ["PROFILE_NAME"] = "itn-dl";
-SET ["URL"] = "https://contenthub.netacad.com";
+SET ["REMOTE_URL"] = "https://contenthub.netacad.com";
 SET ["HOST_ADDRESS"] = "localhost"
 SET ["PORT_NUMBER"] = 5001;
 SET ["MAX_LOAD_RESOURCES_TRIALS"] = 1;
