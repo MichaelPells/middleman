@@ -3,7 +3,7 @@ const profile_info = require("./profiles.json")[profile];
 
 process.title = `ContentPro: ${profile} (${profile_info.remote_URL})`;
 
-const io = require("socket.io-client");
+const { io } = require("socket.io-client");
 
 const development = true;
 
@@ -57,7 +57,9 @@ function error_handler() {
 }
 setInterval(error_handler, 0)
 
-const socket = io("http://localhost:3000");
+const socket = io.connect("http://localhost:3000");
+
+socket.once("init", (socket_id) => socket.emit("init", socket_id, profile));
 
 socket.once("disconnect", (reason) => {
 	console.log("An error occured: Server crashed. Please close this window and restart application.")

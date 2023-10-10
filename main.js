@@ -23,6 +23,10 @@ const run = require("./executors/run");
 var profiles = require("./profiles.json");
 
 const SETTINGS = {};
+const servers = {};
+const shells = {};
+const sockets = {};
+const callbacks = {};
 
 function sortIfObject (object) {
     if (object && typeof(object) == "object") {
@@ -46,6 +50,16 @@ class DEFAULT {
 const server = http.createServer().listen(3000);
 const interface = new Server(server);
 
+interface.on("connection", (socket) => {
+    interface.to(socket.id).emit("init", socket.id)
+
+    socket.on("init", (socket_id, profile) => {
+        if (socket_id == socket.id) {
+            callbacks[profile](socket);
+        }
+    });
+});
+
 function runner (profile) {
     const app = express();
 
@@ -58,17 +72,17 @@ function runner (profile) {
     //app.use(express.static(PATH.join(__dirname, "public/")));
 
     function log (message) {
-        profile_socket.emit("log", message);
+        sockets[profile].emit("log", message);
     }
     
     function reportError (info, code = null) {
-        profile_socket.emit("reportError", {info, code});
+        sockets[profile].emit("reportError", {info, code});
     }
 
     function load_resources(allResources = JSON.parse(fs.readFileSync('resources.json')), url=null, trials=null, req=null, res=null, Input = null) {
         if (allResources.length == 0) {return}
         
-        n = 0;
+        var n = 0;
         function load() {
             var rurl = allResources[n];
             n += 1;
@@ -390,18 +404,14 @@ function runner (profile) {
         }
     });
 
-    var profile_server = null;
-    var profile_shell = null;
-    var profile_socket = null;
-
-    profile_server = app.listen(port, host, () => {
-        profile_shell = child_process.spawn("node ProfileReporter-shell.js", [profile], {
+    servers[profile] = app.listen(port, host, () => {
+        shells[profile] = child_process.spawn("node ProfileReporter-shell.js", [profile], {
             detached: true,
             shell: true,
         });
 
-        interface.once("connection", (socket) => {
-            profile_socket = socket;
+        callbacks[profile] = function (socket) {   
+            sockets[profile] = socket;
 
             log(`${profile} is online.\n`);
             log(`    | Status:    Active${development?" (Development)":""}`);
@@ -409,24 +419,30 @@ function runner (profile) {
             if (!development) {open(`http://${host}:${port}`)}
         
             // When Server is closed
-            profile_server.once("close", () => {
+            servers[profile].once("close", () => {
                 try {log("Server Closed")} catch (e) {}
-                try {profile_socket.disconnect(true)} catch (e) {}
+                try {sockets[profile].disconnect(true)} catch (e) {}
+
+                console.log("Server is closed")
             });
             
             // When Shell is closed
-            profile_shell.once("close", (code, signal) => {
-                try {profile_server.close()} catch (e) {}
-                try {profile_socket.disconnect(true)} catch (e) {}
+            shells[profile].once("close", (code, signal) => {
+                try {servers[profile].close()} catch (e) {}
+                try {sockets[profile].disconnect(true)} catch (e) {}
                 if (mode == "execution") {process.exit()}
+
+                console.log("Shell is closed")
             });
 
             // When Socket is closed
-            profile_socket.once("disconnect", (reason) => {
-                try {profile_server.close()} catch (e) {}
-                try {profile_shell.kill()} catch (e) {}
+            sockets[profile].once("disconnect", (_) => {
+                try {servers[profile].close()} catch (e) {}
+                try {shells[profile].kill()} catch (e) {}
+
+                console.log("Socket is closed")
             });
-        });
+        };
     });
 }
 
