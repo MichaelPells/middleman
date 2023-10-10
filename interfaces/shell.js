@@ -1,5 +1,5 @@
 const profile = process.argv[process.argv.length-1];
-const profile_info = require("./profiles.json")[profile];
+const profile_info = require("../profiles.json")[profile];
 
 process.title = `ContentPro: ${profile} (${profile_info.remote_URL})`;
 

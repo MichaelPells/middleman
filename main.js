@@ -405,7 +405,7 @@ function runner (profile) {
     });
 
     servers[profile] = app.listen(port, host, () => {
-        shells[profile] = child_process.spawn("node ProfileReporter-shell.js", [profile], {
+        shells[profile] = child_process.spawn("node interfaces/shell.js", [profile], {
             detached: true,
             shell: true,
         });
