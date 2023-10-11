@@ -12,7 +12,7 @@ module.exports =  function install (next_arg, options) {
         var MAX_LOAD_RESOURCES_TRIALS = Number(options["--MAX_LOAD_RESOURCES_TRIALS"] || options["-m"] || 1);
 
         profiles[profile] = {
-            "remote_URL": REMOTE_URL
+            "REMOTE_URL": REMOTE_URL
         }
 
         var settings =
@@ -36,12 +36,8 @@ SET ["ON_INCOMING"] = function (request, response, Default) {
             fs.mkdirSync(`profiles/${profile}/model`);
             fs.mkdirSync(`profiles/${profile}/public`);
             fs.writeFileSync("profiles.json", JSON.stringify(profiles, undefined, 4));
-        } catch (err) {
-            fs.rmdirSync(`profiles/${profile}`);
-            console.log(err);
-        }
 
-        console.log(
+            console.log(
 `${profile} was installed with the following settings:
     PROFILE_NAME: ${profile}
     REMOTE_URL: ${REMOTE_URL}
@@ -49,8 +45,18 @@ SET ["ON_INCOMING"] = function (request, response, Default) {
     PORT_NUMBER: ${PORT_NUMBER}
     MAX_LOAD_RESOURCES_TRIALS: ${MAX_LOAD_RESOURCES_TRIALS}
 
-Visit 'profiles/${profile}/settings.js' to customize profile.`)
+Visit 'profiles/${profile}/settings.js' to customize profile.`);
+
+            execution_path_free = true;
+        } catch (err) {
+            fs.rmSync(`profiles/${profile}`, {recursive: true, force: true});
+            console.log(err);
+
+            execution_path_free = true;
+        }
     } else {
         console.log(`${profile} is already installed. Install new profile using a different name.`)
+
+        execution_path_free = true;
     }
 }

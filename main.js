@@ -21,8 +21,10 @@ const child_process = require('child_process');
 const run = require("./executors/run");
 const close = require("./executors/close");
 const install = require("./executors/install");
+const uninstall = require("./executors/uninstall");
 
 global.profiles = require("./profiles.json");
+global.execution_path_free = true;
 
 const SETTINGS = {};
 const servers = {};
@@ -63,257 +65,270 @@ interface.on("connection", (socket) => {
 });
 
 function runner (profile) {
-    const app = express();
+    return new Promise((resolve, reject) => {
+        try {
 
-    app.use(cors());
-    app.use(cookieParser());
-    // app.use(express.json({limit: '1024mb'}));
-    app.use(bodyParser());
-    app.use(express.text());
-    // app.use(express.urlencoded());
-    //app.use(express.static(PATH.join(__dirname, "public/")));
+            const app = express();
 
-    function log (message) {
-        sockets[profile].emit("log", message);
-    }
-    
-    function reportError (info, code = null) {
-        sockets[profile].emit("reportError", {info, code});
-    }
+            app.use(cors());
+            app.use(cookieParser());
+            // app.use(express.json({limit: '1024mb'}));
+            app.use(bodyParser());
+            app.use(express.text());
+            // app.use(express.urlencoded());
+            //app.use(express.static(PATH.join(__dirname, "public/")));
 
-    function load_resources(allResources = JSON.parse(fs.readFileSync('resources.json')), url=null, trials=null, req=null, res=null, Input = null) {
-        if (allResources.length == 0) {return}
-        
-        var n = 0;
-        function load() {
-            var rurl = allResources[n];
-            n += 1;
-    
-            if (development) {log(`    Resource: ${n}.    ${rurl}`)}
-    
-            var request = https.get(rurl, (response) => { // All corresponding req options must be sent here as well.
-    
-                reportError(null, "REQUESTSUCCESS");
-    
-                if (response.statusCode.toString()[0] == "2") { // Use a more general rule here.
-                    var data = Buffer.from("");
-                    response.on('data', (chunk) => {data = Buffer.concat([data, chunk])});
-                    response.on('end', () => {
-                        var dat = Object.fromEntries(Object.keys(response)
-                            .sort()
-                            // .filter((key) => {
-                            //     if (key !== "socket" && key !== "client" && key !== "req") {
-                            //         return true
-                            //     }
-                            // })
-                            .map((key) => {
-                                return [key, response[key]]
-                            })
-                        )
-                        console.log(dat)
-                        
-                        var entry = res.url; // Is there a better approach?
-                        var file = response.req.path;
-    
-                        var fileParams = file.split('/');
-                        var filepath = fileParams.slice(0, fileParams.length-1).join('/');  // (1 of 2) Will this work for a path `/x/y` (without a trailing `/`) redirecting to `/x/y/index.html` from host server?
-                        var filename = fileParams[fileParams.length-1];
-    
-                        if (filename == "") {
-                            filename = `index.${mimeType.extension(response.headers["content-type"])}`;
-                        }
-    
-                        if (fs.existsSync(`${location}/public${file}`)) {
-                            var inputHead = Input.substr(0, 10);
-                            var timestamp = `${(new Date()).getTime()}`;
-                            var random = (function () {
-                                function rand() {return Math.trunc(Math.random()*10).toString()}
-                                return rand()+rand()+rand()+rand();
-                            })();
-                            var unique = `${inputHead}-${timestamp}-${random}`; // NOTE: 29 Characters
-    
-                            if (filename.indexOf(".") > -1) {
-                                filename = filename.split(".");
-                                var fileName = filename.slice(0, filename.length-1).join('.');
-                                var fileExt = filename[filename.length-1];
-    
-                                filename = `${fileName}-{${unique}}.${fileExt}`; // NOTE: +32 Characters
-                            } else {
-                                filename = `${filename}-{${unique}}`; // NOTE: +32 Characters
-                            }
-    
-                            file = `${filepath}/${filename}`;
-                        }
-    
-                        function mkOrModifyDirSync (filepath) {
-                            try {
-                                fs.mkdirSync(`${location}/public${filepath}`, {recursive: true});
-                                return filepath;
-                            } catch (err) {
-                                if (err.code == "EEXIST") {
-                                    return mkOrModifyDirSync(`${filepath}-[DIR]`);
-                                } else if (err.code == "ENOTDIR") {
-                                    var fileDirs = filepath.split('/').slice(1);
-                                    var modifiedPath = "";
-                                    for (var dir of fileDirs) {
-                                        modifiedPath = mkOrModifyDirSync(`${modifiedPath}/${dir}`);
-                                    }
-                                    return modifiedPath;
-                                }
-                            }
-                        }
-    
-                        filepath = mkOrModifyDirSync(filepath);
-                        file = `${filepath}/${filename}`;
-    
-                        fs.writeFile(`${location}/public${file}`, data, (err) => {
-                            if (!err) {
-                                // // Building Entry Output
-                                var Output = {};
-    
-                                Output.statusCode = response.statusCode;
-                                Output.statusMessage = response.statusMessage;
-                                Output.headers = response.headers;
-                                Output.file = file;
-    
-                                Output = JSON.stringify(Output);
-    
-                                fs.mkdirSync(`${location}/model${entry}`, {recursive: true});
-    
-                                fs.writeFile(`${location}/model${entry}/${Input}.json`, Output, (err) => {
-                                    if (!err) {
-                                        reportError(null, "WRITESUCCESS");
-                                        
-                                        if(req) {send(url, trials, req, res, Input)}
+            function log (message) {
+                sockets[profile].emit("log", message);
+            }
             
-                                        if (n < allResources.length) {load()}
+            function reportError (info, code = null) {
+                sockets[profile].emit("reportError", {info, code});
+            }
+
+            function load_resources(allResources = JSON.parse(fs.readFileSync('resources.json')), url=null, trials=null, req=null, res=null, Input = null) {
+                if (allResources.length == 0) {return}
+                
+                var n = 0;
+                function load() {
+                    var rurl = allResources[n];
+                    n += 1;
+            
+                    if (development) {log(`    Resource: ${n}.    ${rurl}`)}
+            
+                    var request = https.get(rurl, (response) => { // All corresponding req options must be sent here as well.
+            
+                        reportError(null, "REQUESTSUCCESS");
+            
+                        if (response.statusCode.toString()[0] == "2") { // Use a more general rule here.
+                            var data = Buffer.from("");
+                            response.on('data', (chunk) => {data = Buffer.concat([data, chunk])});
+                            response.on('end', () => {
+                                var dat = Object.fromEntries(Object.keys(response)
+                                    .sort()
+                                    // .filter((key) => {
+                                    //     if (key !== "socket" && key !== "client" && key !== "req") {
+                                    //         return true
+                                    //     }
+                                    // })
+                                    .map((key) => {
+                                        return [key, response[key]]
+                                    })
+                                )
+                                console.log(dat)
+                                
+                                var entry = res.url; // Is there a better approach?
+                                var file = response.req.path;
+            
+                                var fileParams = file.split('/');
+                                var filepath = fileParams.slice(0, fileParams.length-1).join('/');  // (1 of 2) Will this work for a path `/x/y` (without a trailing `/`) redirecting to `/x/y/index.html` from host server?
+                                var filename = fileParams[fileParams.length-1];
+            
+                                if (filename == "") {
+                                    filename = `index.${mimeType.extension(response.headers["content-type"])}`;
+                                }
+            
+                                if (fs.existsSync(`${location}/public${file}`)) {
+                                    var inputHead = Input.substr(0, 10);
+                                    var timestamp = `${(new Date()).getTime()}`;
+                                    var random = (function () {
+                                        function rand() {return Math.trunc(Math.random()*10).toString()}
+                                        return rand()+rand()+rand()+rand();
+                                    })();
+                                    var unique = `${inputHead}-${timestamp}-${random}`; // NOTE: 29 Characters
+            
+                                    if (filename.indexOf(".") > -1) {
+                                        filename = filename.split(".");
+                                        var fileName = filename.slice(0, filename.length-1).join('.');
+                                        var fileExt = filename[filename.length-1];
+            
+                                        filename = `${fileName}-{${unique}}.${fileExt}`; // NOTE: +32 Characters
                                     } else {
-                                        fs.rm(`${location}/public${file}`, () => {})
-    
+                                        filename = `${filename}-{${unique}}`; // NOTE: +32 Characters
+                                    }
+            
+                                    file = `${filepath}/${filename}`;
+                                }
+            
+                                function mkOrModifyDirSync (filepath) {
+                                    try {
+                                        fs.mkdirSync(`${location}/public${filepath}`, {recursive: true});
+                                        return filepath;
+                                    } catch (err) {
+                                        if (err.code == "EEXIST") {
+                                            return mkOrModifyDirSync(`${filepath}-[DIR]`);
+                                        } else if (err.code == "ENOTDIR") {
+                                            var fileDirs = filepath.split('/').slice(1);
+                                            var modifiedPath = "";
+                                            for (var dir of fileDirs) {
+                                                modifiedPath = mkOrModifyDirSync(`${modifiedPath}/${dir}`);
+                                            }
+                                            return modifiedPath;
+                                        }
+                                    }
+                                }
+            
+                                filepath = mkOrModifyDirSync(filepath);
+                                file = `${filepath}/${filename}`;
+            
+                                fs.writeFile(`${location}/public${file}`, data, (err) => {
+                                    if (!err) {
+                                        // // Building Entry Output
+                                        var Output = {};
+            
+                                        Output.statusCode = response.statusCode;
+                                        Output.statusMessage = response.statusMessage;
+                                        Output.headers = response.headers;
+                                        Output.file = file;
+            
+                                        Output = JSON.stringify(Output);
+            
+                                        fs.mkdirSync(`${location}/model${entry}`, {recursive: true});
+            
+                                        fs.writeFile(`${location}/model${entry}/${Input}.json`, Output, (err) => {
+                                            if (!err) {
+                                                reportError(null, "WRITESUCCESS");
+                                                
+                                                if(req) {send(url, trials, req, res, Input)}
+                    
+                                                if (n < allResources.length) {load()}
+                                            } else {
+                                                fs.rm(`${location}/public${file}`, () => {})
+            
+                                                reportError(err, "WRITEFAIL");
+            
+                                                if(req) {send(url, trials, req, res, Input)}
+                    
+                                                if (n < allResources.length) {load()}
+                                            }
+                                        });
+                                    } else {
                                         reportError(err, "WRITEFAIL");
-    
+            
                                         if(req) {send(url, trials, req, res, Input)}
             
                                         if (n < allResources.length) {load()}
                                     }
                                 });
-                            } else {
-                                reportError(err, "WRITEFAIL");
-    
-                                if(req) {send(url, trials, req, res, Input)}
-    
-                                if (n < allResources.length) {load()}
+                            });
+                        } else {
+                            reportError(`${response.statusCode}:  ${response.statusMessage}`, "UNEXPECTEDRESPONSE")
+            
+                            if(req) {send(url, trials, req, res, Input)}
+                            
+                            if (n < allResources.length) {load()}
+                        }
+                    });
+                    request.on('error', (error) => {
+                        reportError(error, "REQUESTFAIL");
+            
+                        if(req) {send(url, trials, req, res, Input)}
+            
+                        if (n < allResources.length) {load()}
+                    });
+                }
+            
+                load();
+            }
+            
+            function send(url, trials, req, res, Input = null) {
+            
+                if (res.cachePath == undefined) {
+            
+                    var entry = req._parsedUrl.pathname;
+            
+                    if (entry.endsWith("/")) {
+                        entry = entry+"index.html";
+                    }
+            
+                    res.url = entry;
+            
+                    if (!Input) {
+                        // // Building Entry Input
+                        var Input = {
+                            headers: {}
+                        };
+            
+                        Input.method = sortIfObject(req.method);
+                        Input.pathname = sortIfObject(req._parsedUrl.pathname);
+                        Input.httpVersion = sortIfObject(req.httpVersion);
+                        Input.query = sortIfObject(req.query);
+                        if(req._body) Input.body = sortIfObject(req.body);
+                        Input.cookies = sortIfObject(req.cookies);
+                        Input.signedCookies = sortIfObject(req.signedCookies);
+                        Input.headers["accept"] = sortIfObject(req.headers["accept"]);
+                        Input.headers["accept-encoding"] = sortIfObject(req.headers["accept-encoding"]);
+                        Input.headers["accept-language"] = sortIfObject(req.headers["accept-language"]);
+                        Input.headers["authorization"] = sortIfObject(req.headers["authorization"]);
+                        Input.headers["expect"] = sortIfObject(req.headers["expect"]);
+                        Input.headers["from"] = sortIfObject(req.headers["from"]);
+                        Input.headers["prefer"] = sortIfObject(req.headers["prefer"]);
+                        Input.headers["proxy-authorization"] = sortIfObject(req.headers["proxy-authorization"]);
+                        Input.headers["range"] = sortIfObject(req.headers["range"]);
+            
+                        Input = JSON.stringify(Input);
+            
+                        // Create a hash
+                        var hash = crypto.createHash('sha256');
+            
+                        hash.on('readable', () => {
+                            var InputHash = hash.read();
+                            if (InputHash) {
+                                Input = InputHash.toString('hex');
                             }
                         });
-                    });
-                } else {
-                    reportError(`${response.statusCode}:  ${response.statusMessage}`, "UNEXPECTEDRESPONSE")
-    
-                    if(req) {send(url, trials, req, res, Input)}
-                    
-                    if (n < allResources.length) {load()}
-                }
-            });
-            request.on('error', (error) => {
-                reportError(error, "REQUESTFAIL");
-    
-                if(req) {send(url, trials, req, res, Input)}
-    
-                if (n < allResources.length) {load()}
-            });
-        }
-    
-        load();
-    }
-    
-    function send(url, trials, req, res, Input = null) {
-    
-        if (res.cachePath == undefined) {
-    
-            var entry = req._parsedUrl.pathname;
-    
-            if (entry.endsWith("/")) {
-                entry = entry+"index.html";
-            }
-    
-            res.url = entry;
-    
-            if (!Input) {
-                // // Building Entry Input
-                var Input = {
-                    headers: {}
-                };
-    
-                Input.method = sortIfObject(req.method);
-                Input.pathname = sortIfObject(req._parsedUrl.pathname);
-                Input.httpVersion = sortIfObject(req.httpVersion);
-                Input.query = sortIfObject(req.query);
-                if(req._body) Input.body = sortIfObject(req.body);
-                Input.cookies = sortIfObject(req.cookies);
-                Input.signedCookies = sortIfObject(req.signedCookies);
-                Input.headers["accept"] = sortIfObject(req.headers["accept"]);
-                Input.headers["accept-encoding"] = sortIfObject(req.headers["accept-encoding"]);
-                Input.headers["accept-language"] = sortIfObject(req.headers["accept-language"]);
-                Input.headers["authorization"] = sortIfObject(req.headers["authorization"]);
-                Input.headers["expect"] = sortIfObject(req.headers["expect"]);
-                Input.headers["from"] = sortIfObject(req.headers["from"]);
-                Input.headers["prefer"] = sortIfObject(req.headers["prefer"]);
-                Input.headers["proxy-authorization"] = sortIfObject(req.headers["proxy-authorization"]);
-                Input.headers["range"] = sortIfObject(req.headers["range"]);
-    
-                Input = JSON.stringify(Input);
-    
-                // Create a hash
-                var hash = crypto.createHash('sha256');
-    
-                hash.on('readable', () => {
-                    var InputHash = hash.read();
-                    if (InputHash) {
-                        Input = InputHash.toString('hex');
+            
+                        hash.write(Input);
+                        hash.end();
                     }
-                });
-    
-                hash.write(Input);
-                hash.end();
-            }
-    
-            fs.readFile(`${location}/model${entry}/${Input}.json`, (err, Output) => {
-                if (!err) {
-                    Output = JSON.parse(Output);
-                    
-                    var file = Output.file;
-                    
-                    fs.readFile(`${location}/public${file}`, (err, data) => {
+            
+                    fs.readFile(`${location}/model${entry}/${Input}.json`, (err, Output) => {
                         if (!err) {
-                            res.data = data;
-    
-                            // Execute profile settings for RESPONSES
-                            var Default = new DEFAULT();
-                            settings.ON_INCOMING(req, res, Default);
-                
-                            if (!Default.prevent.includes("all")) { // DEFAULT
-    
-                                for (var info of Object.keys(Output)) {
-                                    if (info == "file") {}
-    
-                                    else if (!Default.prevent.includes(`set${info[0].toUpperCase()}${info.slice(1)}`)) { // DEFAULT
-                                        if (info == "headers") {
-                                            for (var header of Object.keys(Output.headers)) {
-                                                if (!Default.prevent.includes(`setHeader:${header}`)) { // DEFAULT
-                                                    res.setHeader(header, Output.headers[header]);
+                            Output = JSON.parse(Output);
+                            
+                            var file = Output.file;
+                            
+                            fs.readFile(`${location}/public${file}`, (err, data) => {
+                                if (!err) {
+                                    res.data = data;
+            
+                                    // Execute profile settings for RESPONSES
+                                    var Default = new DEFAULT();
+                                    settings.ON_INCOMING(req, res, Default);
+                        
+                                    if (!Default.prevent.includes("all")) { // DEFAULT
+            
+                                        for (var info of Object.keys(Output)) {
+                                            if (info == "file") {}
+            
+                                            else if (!Default.prevent.includes(`set${info[0].toUpperCase()}${info.slice(1)}`)) { // DEFAULT
+                                                if (info == "headers") {
+                                                    for (var header of Object.keys(Output.headers)) {
+                                                        if (!Default.prevent.includes(`setHeader:${header}`)) { // DEFAULT
+                                                            res.setHeader(header, Output.headers[header]);
+                                                        }
+                                                    }
+                                                } else {
+                                                    res[info] = Output[info];
                                                 }
                                             }
-                                        } else {
-                                            res[info] = Output[info];
+                                        }
+                        
+                                        if (!Default.prevent.includes("send")) { // DEFAULT
+                                            res.send(res.data);
                                         }
                                     }
+                                    
+                                } else {
+                                    if (trials < max_load_resources_trials) {
+                                        var fetchUrl = remote_server_address+url
+                                        load_resources([fetchUrl], url, trials+1, req, res, Input);
+                                    } else {
+                                        res.statusCode = "404";
+                                        res.end();
+                                    }
                                 }
-                
-                                if (!Default.prevent.includes("send")) { // DEFAULT
-                                    res.send(res.data);
-                                }
-                            }
-                            
+                            });
                         } else {
                             if (trials < max_load_resources_trials) {
                                 var fetchUrl = remote_server_address+url
@@ -325,132 +340,132 @@ function runner (profile) {
                         }
                     });
                 } else {
-                    if (trials < max_load_resources_trials) {
-                        var fetchUrl = remote_server_address+url
-                        load_resources([fetchUrl], url, trials+1, req, res, Input);
-                    } else {
-                        res.statusCode = "404";
-                        res.end();
-                    }
-                }
-            });
-        } else {
-            var file = res.cachePath;
-    
-            if (file.endsWith("/")) {
-                file = file+"index.html";
-            }
-    
-            res.url = file;
-    
-            fs.readFile(`${location}/public${file}`, (err, data) => {
-                if (!err) {
-                    res.data = data;
-    
-                    // Execute profile settings for RESPONSES
-                    var Default = new DEFAULT();
-                    settings.ON_INCOMING(req, res, Default);
-        
-                    if (!Default.prevent.includes("all")) { // DEFAULT
-        
-                        if (!Default.prevent.includes("setStatusCode")) { // DEFAULT
-                            res.statusCode = "200";
-                        }
-        
-                        if (!Default.prevent.includes("setHeader:Content-Type")) { // DEFAULT
-                            var contentType = mimeType.lookup(file) || "application/octet-stream";
-                            res.setHeader("Content-Type", contentType);
-                        }
-        
-                        if (!Default.prevent.includes("send")) { // DEFAULT
-                            res.send(res.data);
-                        }
-                    }
-                    
-                } else {
-                    res.statusCode = "404";
-                    res.end();
-                }
-            });
-        }
-    }
-
-    // LOAD PROFILE SETTINGS
-    var location = `profiles/${profile}`;
-    SETTINGS[profile] = {};
-    global.SET = SETTINGS[profile];
-    require(`./${location}/settings.js`);
-    delete require.cache[require.resolve(`./${location}/settings.js`)];
-    var settings = {...SETTINGS[profile]};
-
-    // PROFILE SETTINGS
-    var remote_server_address = settings.REMOTE_URL;
-    var host = settings.HOST_ADDRESS || "localhost";
-    var port = settings.PORT_NUMBER;
-    var max_load_resources_trials = settings.MAX_LOAD_RESOURCES_TRIALS || 1;
-
-    app.get(/^\/.*/, (req, res) => {
-
-        var url = req.url;
-        var absoluteURL = `http://${host}:${port}${url}`;
-        console.log(absoluteURL)
-        req.URL = new URL(absoluteURL);
-        req.URL.params = req.URL.pathname.slice(1).split('/');
-
-        // Execute profile settings for REQUESTS
-        var Default = new DEFAULT();
-        settings.ON_OUTGOING(req, res, Default);
-
-        if (!Default.prevent.includes("all")) { // DEFAULT
-            send(req.url, 0, req, res);
-        }
-    });
-
-    servers[profile] = app.listen(port, host, () => {
-        shells[profile] = child_process.spawn("node interfaces/shell.js", [profile], {
-            detached: true,
-            shell: true,
-        });
-
-        shells[profile].exit = function () {
-            shells[profile].kill();
-            interface.to(sockets[profile].id).emit("exit");
-        };
-
-        callbacks[profile] = function (socket) { 
-            sockets[profile] = socket;
-
-            log(`${profile} is online.\n`);
-            log(`    | Status:    Active${development?" (Development)":""}`);
-            log(`    | Interface: http://${host}:${port}`);
-            if (!development) {open(`http://${host}:${port}`)}
-        
-            // When Server is closed
-            servers[profile].once("close", () => {
-                try {log("Server Closed")} catch (e) {}
-                try {sockets[profile].disconnect(true)} catch (e) {}
-            });
+                    var file = res.cachePath;
             
-            // When Shell is closed
-            shells[profile].once("close", (code, signal) => {
-                try {servers[profile].close()} catch (e) {}
-                try {sockets[profile].disconnect(true)} catch (e) {}
-                if (mode == "execution") {process.exit()}
+                    if (file.endsWith("/")) {
+                        file = file+"index.html";
+                    }
+            
+                    res.url = file;
+            
+                    fs.readFile(`${location}/public${file}`, (err, data) => {
+                        if (!err) {
+                            res.data = data;
+            
+                            // Execute profile settings for RESPONSES
+                            var Default = new DEFAULT();
+                            settings.ON_INCOMING(req, res, Default);
+                
+                            if (!Default.prevent.includes("all")) { // DEFAULT
+                
+                                if (!Default.prevent.includes("setStatusCode")) { // DEFAULT
+                                    res.statusCode = "200";
+                                }
+                
+                                if (!Default.prevent.includes("setHeader:Content-Type")) { // DEFAULT
+                                    var contentType = mimeType.lookup(file) || "application/octet-stream";
+                                    res.setHeader("Content-Type", contentType);
+                                }
+                
+                                if (!Default.prevent.includes("send")) { // DEFAULT
+                                    res.send(res.data);
+                                }
+                            }
+                            
+                        } else {
+                            res.statusCode = "404";
+                            res.end();
+                        }
+                    });
+                }
+            }
+
+            // LOAD PROFILE SETTINGS
+            var location = `profiles/${profile}`;
+            SETTINGS[profile] = {};
+            global.SET = SETTINGS[profile];
+            require(`./${location}/settings.js`);
+            delete require.cache[require.resolve(`./${location}/settings.js`)];
+            var settings = {...SETTINGS[profile]};
+
+            // PROFILE SETTINGS
+            var remote_server_address = settings.REMOTE_URL;
+            var host = settings.HOST_ADDRESS || "localhost";
+            var port = settings.PORT_NUMBER;
+            var max_load_resources_trials = settings.MAX_LOAD_RESOURCES_TRIALS || 1;
+
+            app.get(/^\/.*/, (req, res) => {
+
+                var url = req.url;
+                var absoluteURL = `http://${host}:${port}${url}`;
+                console.log(absoluteURL)
+                req.URL = new URL(absoluteURL);
+                req.URL.params = req.URL.pathname.slice(1).split('/');
+
+                // Execute profile settings for REQUESTS
+                var Default = new DEFAULT();
+                settings.ON_OUTGOING(req, res, Default);
+
+                if (!Default.prevent.includes("all")) { // DEFAULT
+                    send(req.url, 0, req, res);
+                }
             });
 
-            // When Socket is closed
-            sockets[profile].once("disconnect", (_) => {
-                try {servers[profile].close()} catch (e) {}
-                try {shells[profile].exit()} catch (e) {}
+            servers[profile] = app.listen(port, host, () => {
+                shells[profile] = child_process.spawn("node interfaces/shell.js", [profile], {
+                    detached: true,
+                    shell: true,
+                });
+
+                shells[profile].exit = function () {
+                    shells[profile].kill();
+                    interface.to(sockets[profile].id).emit("exit");
+                };
+
+                callbacks[profile] = function (socket) { 
+                    sockets[profile] = socket;
+
+                    log(`${profile} is online.\n`);
+                    log(`    | Status:    Active${development?" (Development)":""}`);
+                    log(`    | Interface: http://${host}:${port}`);
+                    if (!development) {open(`http://${host}:${port}`)}
+                
+                    // When Server is closed
+                    servers[profile].once("close", () => {
+                        try {log("Server Closed")} catch (e) {}
+                        try {sockets[profile].disconnect(true)} catch (e) {}
+                    });
+                    
+                    // When Shell is closed
+                    shells[profile].once("close", (code, signal) => {
+                        try {servers[profile].close()} catch (e) {}
+                        try {sockets[profile].disconnect(true)} catch (e) {}
+                        if (mode == "execution") {process.exit()}
+                    });
+
+                    // When Socket is closed
+                    sockets[profile].once("disconnect", (_) => {
+                        try {servers[profile].close()} catch (e) {}
+                        try {shells[profile].exit()} catch (e) {}
+                    });
+                };
+
+                servers[profile].removeAllListeners("error");
+                resolve(`Running profile: ${profile}`);
             });
-        };
+
+            servers[profile].once("error", (err) => {
+                reject(err);
+            });
+
+        } catch (err) {
+            reject(err);
+        }
     });
 }
 
 function closer (profile) {
-    try {servers[profile].close()} catch (e) {}
     try {shells[profile].exit()} catch (e) {}
-    // try {sockets[profile].disconnect(true)} catch (e) {}
 } 
 
 var args, options, parsed_args;
@@ -466,7 +481,7 @@ function process_argv (statement) {
             args.push(arg);
         } else {
             var option = arg.split("=")[0];
-            var value = arg.split("=")[1];
+            var value = arg.split("=")[1] || true;
             options[option] = value;
         }
     }
@@ -480,6 +495,7 @@ function next_arg () {
             "run",
             "close",
             "install",
+            "uninstall",
 
             // profiles
             ...Object.keys(profiles),
@@ -546,6 +562,18 @@ function selector (arg) {
             args: [next_arg, options]
         };
     }
+
+    // // command: uninstall
+    else if (arg == "uninstall") {
+        return {
+            function: uninstall,
+            args: [next_arg, options]
+        };
+    }
+
+    else {
+        return null;
+    }
 }
 
 var command = next_arg();
@@ -564,16 +592,26 @@ if (command) {
 
             command = next_arg();
             var executor = selector(command);
-            executor.function(...executor.args);
+
+            if (executor) {
+                execution_path_free = false;
+                executor.function(...executor.args);
+            } else {
+                console.log(`Unknown command: ${command}`);
+            }
         }
 
-        process.stdout.write("\n>>> ");
+        var interval = setInterval(() => {
+            if (execution_path_free) {
+                clearInterval(interval);
+                process.stdout.write("\n>>> ");
+                process.stdin.once("data", (input) => {
+                    REPL(input.toString().trim());
+                });
+            }
+        });
     }
     REPL();
-
-    process.stdin.on("data", (input) => {
-        REPL(input.toString().trim());
-    });
 }
 
 

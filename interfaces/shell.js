@@ -1,7 +1,7 @@
 const profile = process.argv[process.argv.length-1];
 const profile_info = require("../profiles.json")[profile];
 
-process.title = `ContentPro: ${profile} (${profile_info.remote_URL})`;
+process.title = `ContentPro: ${profile} (${profile_info.REMOTE_URL})`;
 
 const { io } = require("socket.io-client");
 

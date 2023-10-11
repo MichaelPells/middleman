@@ -1,4 +1,4 @@
-module.exports =  function run (next_arg, options, runner) {
+module.exports =  async function run (next_arg, options, runner) {
     var profiles_list = Object.keys(profiles);
 
     var given = [];
@@ -13,7 +13,14 @@ module.exports =  function run (next_arg, options, runner) {
 
     for (profile of given) {
         if (profiles_list.includes(profile)) {
-            runner(profile);
+            try {
+                var report = await runner(profile);
+                console.log(report);
+            } catch (err) {
+                console.log(err);
+            }
         }
     }
+
+    execution_path_free = true;
 }

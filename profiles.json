@@ -1,11 +1,11 @@
 {
     "itn-dl": {
-        "remote_URL": "https://contenthub.netacad.com"
+        "REMOTE_URL": "https://contenthub.netacad.com"
     },
     "w3schools": {
-        "remote_URL": "https://w3schools.com"
+        "REMOTE_URL": "https://w3schools.com"
     },
     "redirector": {
-        "remote_URL": "https://contenthub.netacad.com"
+        "REMOTE_URL": "https://contenthub.netacad.com"
     }
 }

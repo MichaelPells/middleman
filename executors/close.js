@@ -14,6 +14,10 @@ module.exports =  function close (next_arg, options, closer) {
     for (profile of given) {
         if (profiles_list.includes(profile)) {
             closer(profile);
+
+            console.log(`Closed profile: ${profile}`)
         }
     }
+
+    execution_path_free = true;
 }
