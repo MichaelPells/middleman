@@ -6,19 +6,29 @@ module.exports =  async function run (next_arg, options, runner) {
     while (profile !== null) {
         if (profile == "all") {
             given.push(...profiles_list)
+        } else {
+            given.push(profile);
         }
-        given.push(profile);
+
         profile = next_arg();
     }
 
     for (profile of given) {
         if (profiles_list.includes(profile)) {
-            try {
-                var report = await runner(profile);
-                console.log(report);
-            } catch (err) {
-                console.log(err);
+            if (!running_profiles.includes(profile)) {
+                try {
+                    var report = await runner(profile);
+                    running_profiles.push(profile);
+
+                    console.log(report);
+                } catch (err) {
+                    console.log(err);
+                }
+            } else {
+                console.log(`Run failed: ${profile} already running.`);
             }
+        } else {
+            console.log(`Run failed: ${profile} is not installed.`); 
         }
     }
 

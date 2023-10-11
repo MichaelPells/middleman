@@ -24,6 +24,7 @@ const install = require("./executors/install");
 const uninstall = require("./executors/uninstall");
 
 global.profiles = require("./profiles.json");
+global.running_profiles = [];
 global.execution_path_free = true;
 
 const SETTINGS = {};
@@ -72,11 +73,9 @@ function runner (profile) {
 
             app.use(cors());
             app.use(cookieParser());
-            // app.use(express.json({limit: '1024mb'}));
-            app.use(bodyParser());
-            app.use(express.text());
-            // app.use(express.urlencoded());
-            //app.use(express.static(PATH.join(__dirname, "public/")));
+            app.use(express.json({extended: false, limit: '1024mb'}));
+            app.use(express.text({extended: false, limit: '1024mb'}));
+            app.use(express.urlencoded({extended: false, limit: '1024mb'}));
 
             function log (message) {
                 sockets[profile].emit("log", message);
@@ -398,7 +397,6 @@ function runner (profile) {
 
                 var url = req.url;
                 var absoluteURL = `http://${host}:${port}${url}`;
-                console.log(absoluteURL)
                 req.URL = new URL(absoluteURL);
                 req.URL.params = req.URL.pathname.slice(1).split('/');
 
@@ -432,6 +430,7 @@ function runner (profile) {
                 
                     // When Server is closed
                     servers[profile].once("close", () => {
+                        running_profiles.splice(running_profiles.indexOf(profile), 1);
                         try {log("Server Closed")} catch (e) {}
                         try {sockets[profile].disconnect(true)} catch (e) {}
                     });

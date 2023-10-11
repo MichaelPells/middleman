@@ -5,17 +5,26 @@ module.exports =  function close (next_arg, options, closer) {
     var profile = next_arg();
     while (profile !== null) {
         if (profile == "all") {
-            given.push(...profiles_list)
+            given.push(...running_profiles)
+        } else {
+            given.push(profile);
         }
-        given.push(profile);
+
         profile = next_arg();
     }
 
     for (profile of given) {
         if (profiles_list.includes(profile)) {
-            closer(profile);
+            if (running_profiles.includes(profile)) {
+                closer(profile);
+                running_profiles.splice(running_profiles.indexOf(profile), 1);
 
-            console.log(`Closed profile: ${profile}`)
+                console.log(`Closed profile: ${profile}`)
+            } else {
+                console.log(`Close error: ${profile} not running.`)
+            }
+        } else {
+            console.log(`Close error: ${profile} is not installed.`); 
         }
     }
 
