@@ -60,12 +60,17 @@ setInterval(error_handler, 0)
 
 const socket = io.connect("http://localhost:3000");
 
-socket.once("init", (socket_id) => socket.emit("init", socket_id, profile));
+socket.on("init", (socket_id) => socket.emit("init", socket_id, profile));
 
-socket.once("exit", () => process.exit(0));
+socket.on("exit", () => process.exit(0));
 
-socket.once("disconnect", (reason) => {
-	console.log("An error occured: Server crashed. Please close this window and restart application.")
+socket.on("disconnect", (_) => {
+	setTimeout(() => {
+		if (!socket.connected) {
+			console.log("An error occured: Server crashed. Please close this window and restart application.")
+		}
+	},
+	10000);
 });
 
 socket.on("log", (message) => {

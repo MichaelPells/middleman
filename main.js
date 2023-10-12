@@ -18,10 +18,11 @@ const http = require("http");
 const { Server } = require("socket.io");
 const child_process = require('child_process');
 
-const run = require("./executors/run");
-const close = require("./executors/close");
+const show = require("./executors/show");
 const install = require("./executors/install");
 const uninstall = require("./executors/uninstall");
+const run = require("./executors/run");
+const close = require("./executors/close");
 
 global.profiles = require("./profiles.json");
 global.running_profiles = [];
@@ -420,7 +421,12 @@ function runner (profile) {
                     interface.to(sockets[profile].id).emit("exit");
                 };
 
-                callbacks[profile] = function (socket) { 
+                callbacks[profile] = function (socket) {
+                    if (sockets[profile]) {
+                        sockets[profile] = socket;
+                        return;
+                    }
+                    
                     sockets[profile] = socket;
 
                     log(`${profile} is online.\n`);
@@ -430,22 +436,41 @@ function runner (profile) {
                 
                     // When Server is closed
                     servers[profile].once("close", () => {
-                        running_profiles.splice(running_profiles.indexOf(profile), 1);
                         try {log("Server Closed")} catch (e) {}
                         try {sockets[profile].disconnect(true)} catch (e) {}
+
+                        running_profiles.indexOf(profile) > -1 && running_profiles.splice(running_profiles.indexOf(profile), 1);
+
+                        delete servers[profile];
+                        delete shells[profile];
+                        delete sockets[profile];
                     });
                     
                     // When Shell is closed
                     shells[profile].once("close", (code, signal) => {
                         try {servers[profile].close()} catch (e) {}
                         try {sockets[profile].disconnect(true)} catch (e) {}
+
+                        delete servers[profile];
+                        delete shells[profile];
+                        delete sockets[profile];
+                        
                         if (mode == "execution") {process.exit()}
                     });
 
                     // When Socket is closed
-                    sockets[profile].once("disconnect", (_) => {
-                        try {servers[profile].close()} catch (e) {}
-                        try {shells[profile].exit()} catch (e) {}
+                    sockets[profile].on("disconnect", (_) => {
+                        setTimeout(() => {
+                            if (!socket.connected) {
+                                try {servers[profile].close()} catch (e) {}
+                                try {shells[profile].exit()} catch (e) {}
+        
+                                delete servers[profile];
+                                delete shells[profile];
+                                delete sockets[profile];
+                            }
+                        },
+                        10000);
                     });
                 };
 
@@ -491,10 +516,11 @@ function next_arg () {
     if (!parsed_args) {
         var root_arguments = [
             // Top-level Commands
-            "run",
-            "close",
+            "show",
             "install",
             "uninstall",
+            "run",
+            "close",
 
             // profiles
             ...Object.keys(profiles),
@@ -526,8 +552,32 @@ function revert_parsed_args () {
 }
 
 function selector (arg) {
+    // // command: show
+    if (arg == "show") {
+        return {
+            function: show,
+            args: [next_arg, options]
+        };
+    }
+
+    // // command: install
+    else if (arg == "install") {
+        return {
+            function: install,
+            args: [next_arg, options]
+        };
+    }
+
+    // // command: uninstall
+    else if (arg == "uninstall") {
+        return {
+            function: uninstall,
+            args: [next_arg, options]
+        };
+    }
+
     // // command: run
-    if (arg == "run") {
+    else if (arg == "run") {
         return {
             function: run,
             args: [next_arg, options, runner]
@@ -551,22 +601,6 @@ function selector (arg) {
         return {
             function: close,
             args: [next_arg, options, closer]
-        };
-    }
-
-    // // command: install
-    else if (arg == "install") {
-        return {
-            function: install,
-            args: [next_arg, options]
-        };
-    }
-
-    // // command: uninstall
-    else if (arg == "uninstall") {
-        return {
-            function: uninstall,
-            args: [next_arg, options]
         };
     }
 

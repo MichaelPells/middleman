@@ -17,7 +17,6 @@ module.exports =  function close (next_arg, options, closer) {
         if (profiles_list.includes(profile)) {
             if (running_profiles.includes(profile)) {
                 closer(profile);
-                running_profiles.splice(running_profiles.indexOf(profile), 1);
 
                 console.log(`Closed profile: ${profile}`)
             } else {
