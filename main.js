@@ -23,6 +23,7 @@ const install = require("./executors/install");
 const uninstall = require("./executors/uninstall");
 const run = require("./executors/run");
 const close = require("./executors/close");
+const reload = require("./executors/reload");
 
 global.profiles = require("./profiles.json");
 global.running_profiles = [];
@@ -33,6 +34,7 @@ const servers = {};
 const shells = {};
 const sockets = {};
 const callbacks = {};
+const reloaders = {};
 
 function sortIfObject (object) {
     if (object && typeof(object) == "object") {
@@ -380,19 +382,25 @@ function runner (profile) {
                 }
             }
 
-            // LOAD PROFILE SETTINGS
-            var location = `profiles/${profile}`;
-            SETTINGS[profile] = {};
-            global.SET = SETTINGS[profile];
-            require(`./${location}/settings.js`);
-            delete require.cache[require.resolve(`./${location}/settings.js`)];
-            var settings = {...SETTINGS[profile]};
+            var location, settings, remote_server_address, host, port, max_load_resources_trials;
 
-            // PROFILE SETTINGS
-            var remote_server_address = settings.REMOTE_URL;
-            var host = settings.HOST_ADDRESS || "localhost";
-            var port = settings.PORT_NUMBER;
-            var max_load_resources_trials = settings.MAX_LOAD_RESOURCES_TRIALS || 1;
+            reloaders[profile] = function () {
+                // LOAD PROFILE SETTINGS
+                location = `profiles/${profile}`;
+                SETTINGS[profile] = {};
+                global.SET = SETTINGS[profile];
+                require(`./${location}/settings.js`);
+                delete require.cache[require.resolve(`./${location}/settings.js`)];
+                settings = {...SETTINGS[profile]};
+
+                // PROFILE SETTINGS
+                remote_server_address = settings.REMOTE_URL;
+                max_load_resources_trials = settings.MAX_LOAD_RESOURCES_TRIALS || 1;
+            }
+            reloaders[profile]();
+
+            host = settings.HOST_ADDRESS || "localhost";
+            port = settings.PORT_NUMBER;
 
             app.get(/^\/.*/, (req, res) => {
 
@@ -490,7 +498,11 @@ function runner (profile) {
 
 function closer (profile) {
     try {shells[profile].exit()} catch (e) {}
-} 
+}
+
+function reloader (profile) {
+    reloaders[profile]();
+}
 
 var args, options, parsed_args;
 
@@ -521,6 +533,7 @@ function next_arg () {
             "uninstall",
             "run",
             "close",
+            "reload",
 
             // profiles
             ...Object.keys(profiles),
@@ -601,6 +614,14 @@ function selector (arg) {
         return {
             function: close,
             args: [next_arg, options, closer]
+        };
+    }
+
+    // // command: reload
+    else if (arg == "reload") {
+        return {
+            function: reload,
+            args: [next_arg, options, reloader]
         };
     }
 
