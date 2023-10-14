@@ -29,6 +29,15 @@ global.profiles = require("./profiles.json");
 global.running_profiles = [];
 global.execution_path_free = true;
 
+global.GET = function (package) {
+    try {
+        return require(package);
+    } catch (e) {
+        // npm install it.
+        // return the import.
+    }
+}
+
 const SETTINGS = {};
 const servers = {};
 const shells = {};
@@ -72,13 +81,31 @@ function runner (profile) {
     return new Promise((resolve, reject) => {
         try {
 
+            var location, settings, remote_server_address, host, port, max_load_resources_trials;
+
+            reloaders[profile] = function () {
+                // LOAD PROFILE SETTINGS
+                location = `profiles/${profile}`;
+                SETTINGS[profile] = {};
+                global.SET = SETTINGS[profile];
+                require(`./${location}/settings.js`);
+                delete require.cache[require.resolve(`./${location}/settings.js`)];
+                settings = {...SETTINGS[profile]};
+
+                // PROFILE SETTINGS
+                remote_server_address = settings.REMOTE_URL;
+                max_load_resources_trials = settings.MAX_LOAD_RESOURCES_TRIALS || 1;
+            }
+            reloaders[profile]();
+
+            host = settings.HOST_ADDRESS || "localhost";
+            port = settings.PORT_NUMBER;
+
             const app = express();
 
-            app.use(cors());
-            app.use(cookieParser());
-            app.use(express.json({extended: false, limit: '1024mb'}));
-            app.use(express.text({extended: false, limit: '1024mb'}));
-            app.use(express.urlencoded({extended: false, limit: '1024mb'}));
+            for (middleware of settings.MIDDLEWARES) {
+                app.use(middleware);
+            }
 
             function log (message) {
                 sockets[profile].emit("log", message);
@@ -381,26 +408,6 @@ function runner (profile) {
                     });
                 }
             }
-
-            var location, settings, remote_server_address, host, port, max_load_resources_trials;
-
-            reloaders[profile] = function () {
-                // LOAD PROFILE SETTINGS
-                location = `profiles/${profile}`;
-                SETTINGS[profile] = {};
-                global.SET = SETTINGS[profile];
-                require(`./${location}/settings.js`);
-                delete require.cache[require.resolve(`./${location}/settings.js`)];
-                settings = {...SETTINGS[profile]};
-
-                // PROFILE SETTINGS
-                remote_server_address = settings.REMOTE_URL;
-                max_load_resources_trials = settings.MAX_LOAD_RESOURCES_TRIALS || 1;
-            }
-            reloaders[profile]();
-
-            host = settings.HOST_ADDRESS || "localhost";
-            port = settings.PORT_NUMBER;
 
             app.get(/^\/.*/, (req, res) => {
 

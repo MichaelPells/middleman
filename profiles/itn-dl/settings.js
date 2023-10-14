@@ -4,6 +4,14 @@ SET ["HOST_ADDRESS"] = "localhost"
 SET ["PORT_NUMBER"] = 5001;
 SET ["MAX_LOAD_RESOURCES_TRIALS"] = 1;
 
+SET ["MIDDLEWARES"] = [
+    GET ("cors")(),
+    GET ("cookie-parser")(),
+    GET ("express").json({extended: false, limit: '1024mb'}),
+    GET ("express").text({extended: false, limit: '1024mb'}),
+    GET ("express").urlencoded({extended: false, limit: '1024mb'})
+];
+
 SET ["ON_OUTGOING"] = function (request, response, Default) {
 // COURSE PATH
     if (request.URL.params[0] == SET.PROFILE_NAME) {
