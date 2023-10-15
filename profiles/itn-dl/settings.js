@@ -1,3 +1,8 @@
+const express = require("express");
+const mimeType = require("mime-types");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
+
 SET ["PROFILE_NAME"] = "itn-dl";
 SET ["REMOTE_URL"] = "https://contenthub.netacad.com";
 SET ["HOST_ADDRESS"] = "localhost"
@@ -5,11 +10,11 @@ SET ["PORT_NUMBER"] = 5001;
 SET ["MAX_LOAD_RESOURCES_TRIALS"] = 1;
 
 SET ["MIDDLEWARES"] = [
-    GET ("cors")(),
-    GET ("cookie-parser")(),
-    GET ("express").json({extended: false, limit: '1024mb'}),
-    GET ("express").text({extended: false, limit: '1024mb'}),
-    GET ("express").urlencoded({extended: false, limit: '1024mb'})
+    cors(),
+    cookieParser(),
+    express.json({extended: false, limit: '1024mb'}),
+    express.text({extended: false, limit: '1024mb'}),
+    express.urlencoded({extended: false, limit: '1024mb'})
 ];
 
 SET ["ON_OUTGOING"] = function (request, response, Default) {
@@ -33,8 +38,6 @@ SET ["ON_INCOMING"] = function (request, response, Default) {
     }
 
 // SET Content-Type
-    const mimeType = require("./node_modules/mime-types");
-
     var contentType = mimeType.lookup(response.url) || (response.url.endsWith("/index") && "text/html") || null;
     if (!contentType) {
         try { // For JSON files

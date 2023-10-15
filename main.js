@@ -5,13 +5,11 @@ process.title = "ContentPro";
 console.log('Cisco NetAcad Content Provider (ContentPro) v1.0\n');
 
 const express = require("express");
-const cors = require("cors");
 const fs = require("fs");
 const https = require("follow-redirects").https;
 const open = require("open");
 const PATH = require("path");
 const mimeType = require("mime-types");
-const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
 const bodyParser = require("body-parser");
 const http = require("http");
@@ -28,15 +26,6 @@ const reload = require("./executors/reload");
 global.profiles = require("./profiles.json");
 global.running_profiles = [];
 global.execution_path_free = true;
-
-global.GET = function (package) {
-    try {
-        return require(package);
-    } catch (e) {
-        // npm install it.
-        // return the import.
-    }
-}
 
 const SETTINGS = {};
 const servers = {};
@@ -103,7 +92,7 @@ function runner (profile) {
 
             const app = express();
 
-            for (middleware of settings.MIDDLEWARES) {
+            for (middleware of settings.MIDDLEWARES || []) {
                 app.use(middleware);
             }
 
