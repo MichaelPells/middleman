@@ -27,6 +27,8 @@ const reload = require("./executors/reload");
 global.profiles = require("./profiles.json");
 global.running_profiles = [];
 global.execution_path_free = true;
+const os = require("os")
+global.type = (os.type() == "Windows_NT") ? "cmd" : "sh";
 
 const SETTINGS = {};
 const servers = {};

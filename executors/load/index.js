@@ -16,7 +16,7 @@ module.exports = function load (next_arg, options) {
 
                 for (let dependency of Object.keys(dependencies)) {
                     try {
-                        await util.promisify(child_process.execFile)(".\\executors\\load\\checker.cmd", [dependency, dependencies[dependency]]);
+                        await util.promisify(child_process.execFile)(`.\\executors\\load\\checker.${type}`, [dependency, dependencies[dependency]]);
                     } catch (e) {
                         new_dependencies.push(dependency);
                     }
@@ -30,7 +30,7 @@ module.exports = function load (next_arg, options) {
                     process.stdout.write(`Installing ${dependency}@${dependencies[dependency]}: `);
                     tried++;
 
-                    child_process.execFile(".\\executors\\load\\installer.cmd", [dependency, dependencies[dependency]], (error) => {
+                    child_process.execFile(`.\\executors\\load\\installer.${type}`, [dependency, dependencies[dependency]], (error) => {
                         if (!error) {
                             process.stdout.write(`success\n`);
                             success++;
