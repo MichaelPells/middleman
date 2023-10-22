@@ -1,0 +1,11 @@
+{
+  "name": "redirector",
+  "version": "1.0.0",
+  "description": "",
+  "main": "settings.js",
+  "scripts": {
+    "test": "echo \"test\""
+  },
+  "author": "",
+  "license": "ISC"
+}
