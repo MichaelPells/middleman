@@ -1,4 +1,5 @@
 const fs = require("fs");
+const prepare = require("../prepare");
 
 module.exports =  function install (next_arg, options) {
     var profiles_list = Object.keys(profiles);
@@ -14,6 +15,18 @@ module.exports =  function install (next_arg, options) {
         profiles[profile] = {
             "REMOTE_URL": REMOTE_URL
         }
+
+        var package = {
+            "name": profile,
+            "version": "1.0.0",
+            "description": "",
+            "main": "",
+            "scripts": {
+              "test": "echo \"test\""
+            },
+            "author": "",
+            "license": "ISC"
+        };
 
         var settings =
 `SET ["PROFILE_NAME"] = "${profile}";
@@ -32,6 +45,7 @@ SET ["ON_INCOMING"] = function (request, response, Default) {
 `
         try {
             fs.mkdirSync(`profiles/${profile}`);
+            fs.writeFileSync(`profiles/${profile}/package.json`, JSON.stringify(package, undefined, 4));
             fs.writeFileSync(`profiles/${profile}/settings.js`, settings);
             fs.mkdirSync(`profiles/${profile}/model`);
             fs.mkdirSync(`profiles/${profile}/public`);
@@ -47,7 +61,7 @@ SET ["ON_INCOMING"] = function (request, response, Default) {
 
 Visit 'profiles/${profile}/settings.js' to customize profile.`);
 
-            execution_path_free = true;
+            prepare(() => profile);
         } catch (err) {
             fs.rmSync(`profiles/${profile}`, {recursive: true, force: true});
             console.log(err);

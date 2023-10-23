@@ -1,0 +1,11 @@
+{
+    "name": "w4",
+    "version": "1.0.0",
+    "description": "",
+    "main": "",
+    "scripts": {
+        "test": "echo \"test\""
+    },
+    "author": "",
+    "license": "ISC"
+}
