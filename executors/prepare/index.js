@@ -2,7 +2,7 @@ const fs = require("fs");
 const child_process = require('child_process');
 const util = require("util");
 
-module.exports = function load (next_arg, options) {
+module.exports = function prepare (next_arg, options) {
     var profiles_list = Object.keys(profiles);
 
     var profile = next_arg();
@@ -16,7 +16,7 @@ module.exports = function load (next_arg, options) {
 
                 for (let dependency of Object.keys(dependencies)) {
                     try {
-                        await util.promisify(child_process.execFile)(`.\\executors\\load\\checker.${type}`, [dependency, dependencies[dependency]]);
+                        await util.promisify(child_process.execFile)(`.\\executors\\prepare\\checker.${type}`, [dependency, dependencies[dependency]]);
                     } catch (e) {
                         new_dependencies.push(dependency);
                     }
@@ -30,7 +30,7 @@ module.exports = function load (next_arg, options) {
                     process.stdout.write(`Installing ${dependency}@${dependencies[dependency]}: `);
                     tried++;
 
-                    child_process.execFile(`.\\executors\\load\\installer.${type}`, [dependency, dependencies[dependency]], (error) => {
+                    child_process.execFile(`.\\executors\\prepare\\installer.${type}`, [dependency, dependencies[dependency]], (error) => {
                         if (!error) {
                             process.stdout.write(`success\n`);
                             success++;
@@ -42,7 +42,7 @@ module.exports = function load (next_arg, options) {
                         if (new_dependencies.length > tried) {
                             install(new_dependencies[tried]);
                         } else {
-                            console.log(`Load Success: Installed ${success} dependencies. ${failed} installs failed.`);
+                            console.log(`Prepare Success: Installed ${success} dependencies. ${failed} installs failed.`);
                             
                             execution_path_free = true;
                         }
@@ -52,18 +52,18 @@ module.exports = function load (next_arg, options) {
                 if (new_dependencies.length) {
                     install(new_dependencies[0]);
                 } else {
-                    console.log(`Load Success: No new dependencies found.`);
+                    console.log(`Prepare Success: No new dependencies found.`);
 
                     execution_path_free = true;
                 }
             } else {
-                console.log(`Load failed: ${profile} is not installed with a 'package.json' file.`);
+                console.log(`Prepare failed: ${profile} is not installed with a 'package.json' file.`);
 
                 execution_path_free = true;
             }
         });
     } else {
-        console.log(`Load failed: ${profile} is not installed.`);
+        console.log(`Prepare failed: ${profile} is not installed.`);
 
         execution_path_free = true;
     }

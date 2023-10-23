@@ -19,7 +19,7 @@ const child_process = require('child_process');
 const show = require("./executors/show");
 const install = require("./executors/install");
 const uninstall = require("./executors/uninstall");
-const load = require("./executors/load");
+const prepare = require("./executors/prepare");
 const run = require("./executors/run");
 const close = require("./executors/close");
 const reload = require("./executors/reload");
@@ -530,7 +530,7 @@ function next_arg () {
             "show",
             "install",
             "uninstall",
-            "load",
+            "prepare",
             "run",
             "close",
             "reload",
@@ -589,10 +589,10 @@ function selector (arg) {
         };
     }
 
-    // // command: load
-    else if (arg == "load") {
+    // // command: prepare
+    else if (arg == "prepare") {
         return {
-            function: load,
+            function: prepare,
             args: [next_arg, options]
         };
     }
