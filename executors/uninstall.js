@@ -6,10 +6,9 @@ module.exports =  function uninstall (next_arg, options) {
     var profile = next_arg();
 
     function uninstaller () {
-        delete profiles[profile];
-
         try {
             fs.rmSync(`profiles/${profile}`, {recursive: true});
+            delete profiles[profile];
             fs.writeFileSync("profiles.json", JSON.stringify(profiles, undefined, 4));
             console.log(`Uninstall success: ${profile} was uninstalled successfully.`);
         } catch (err) {

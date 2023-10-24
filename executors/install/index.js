@@ -14,7 +14,7 @@ module.exports =  function install (next_arg, options) {
 
         profiles[profile] = {
             "REMOTE_URL": REMOTE_URL
-        }
+        };
 
         var package = {
             "name": profile,
@@ -25,7 +25,8 @@ module.exports =  function install (next_arg, options) {
               "test": "echo \"test\""
             },
             "author": "",
-            "license": "ISC"
+            "license": "ISC",
+            "dependencies": Object.fromEntries(Object.keys(options).filter((option) => option.startsWith("--add-")).map((option) => [option.replace("--add-", ""), options[option] === true ? "latest" : options[option]]))
         };
 
         var settings =

@@ -42,7 +42,11 @@ module.exports = function prepare (next_arg, options) {
                         if (new_dependencies.length > tried) {
                             install(new_dependencies[tried]);
                         } else {
-                            console.log(`Prepare Success: Installed ${success} dependencies. ${failed} installs failed.`);
+                            if (!failed) {
+                                console.log(`Prepare Success: Installed ${success} dependencies. ${failed} installs failed.`);
+                            } else {
+                                console.log(`Prepare Failed: Installed ${success} dependencies. ${failed} installs failed.`);
+                            }
                             
                             execution_path_free = true;
                         }
