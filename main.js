@@ -19,6 +19,8 @@ const child_process = require('child_process');
 const show = require("./executors/show");
 const install = require("./executors/install");
 const uninstall = require("./executors/uninstall");
+const build = require("./executors/build");
+const register = require("./executors/register");
 const prepare = require("./executors/prepare");
 const run = require("./executors/run");
 const close = require("./executors/close");
@@ -530,6 +532,8 @@ function next_arg () {
             "show",
             "install",
             "uninstall",
+            "build",
+            "register",
             "prepare",
             "run",
             "close",
@@ -585,6 +589,22 @@ function selector (arg) {
     else if (arg == "uninstall") {
         return {
             function: uninstall,
+            args: [next_arg, options]
+        };
+    }
+
+    // // command: build
+    else if (arg == "build") {
+        return {
+            function: build,
+            args: [next_arg, options]
+        };
+    }
+
+    // // command: register
+    else if (arg == "register") {
+        return {
+            function: register,
             args: [next_arg, options]
         };
     }

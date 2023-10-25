@@ -1,7 +1,6 @@
 const fs = require("fs");
-const prepare = require("../prepare");
 
-module.exports =  function install (next_arg, options) {
+module.exports =  function build (next_arg, options) {
     var profiles_list = Object.keys(profiles);
 
     var profile = next_arg();
@@ -11,10 +10,6 @@ module.exports =  function install (next_arg, options) {
         var HOST_ADDRESS = options["--HOST_ADDRESS"] || options["-h"] || "localhost";
         var PORT_NUMBER = Number(options["--PORT_NUMBER"] || options["-p"]);
         var MAX_LOAD_RESOURCES_TRIALS = Number(options["--MAX_LOAD_RESOURCES_TRIALS"] || options["-m"] || 1);
-
-        profiles[profile] = {
-            "REMOTE_URL": REMOTE_URL
-        };
 
         var package = {
             "name": profile,
@@ -50,10 +45,12 @@ SET ["ON_INCOMING"] = function (request, response, Default) {
             fs.writeFileSync(`profiles/${profile}/settings.js`, settings);
             fs.mkdirSync(`profiles/${profile}/model`);
             fs.mkdirSync(`profiles/${profile}/public`);
-            fs.writeFileSync("profiles.json", JSON.stringify(profiles, undefined, 4));
 
-            console.log(
-`${profile} was installed with the following settings:
+            if (options["--internal"]) {
+
+            } else {
+                console.log(
+`${profile} was built with the following settings:
     PROFILE_NAME: ${profile}
     REMOTE_URL: ${REMOTE_URL}
     HOST_ADDRESS: ${HOST_ADDRESS}
@@ -62,16 +59,26 @@ SET ["ON_INCOMING"] = function (request, response, Default) {
 
 Visit 'profiles/${profile}/settings.js' to customize profile.`);
 
-            prepare(() => profile);
+                execution_path_free = true;
+            }
         } catch (err) {
             fs.rmSync(`profiles/${profile}`, {recursive: true, force: true});
-            console.log(err);
+
+            if (options["--internal"]) {
+                throw err;
+            } else {
+                console.log(err);
+
+                execution_path_free = true;
+            }
+        }
+    } else {
+        if (options["--internal"]) {
+            throw `${profile} could not be built - ${profile} is already installed.`;
+        } else {
+            console.log(`Build failed: ${profile} is already installed. Build new profile using a different name.`)
 
             execution_path_free = true;
         }
-    } else {
-        console.log(`${profile} is already installed. Install new profile using a different name.`)
-
-        execution_path_free = true;
     }
 }
