@@ -1,3 +1,5 @@
+const fs = require("fs");
+
 const build = require("./build");
 const register = require("./register");
 const prepare = require("./prepare");
@@ -8,8 +10,16 @@ module.exports =  async function install (next_arg, options) {
     var profile = next_arg();
 
     if (!profiles_list.includes(profile)) {
+        var REMOTE_URL = options["--REMOTE_URL"] || options["-u"];
+        var HOST_ADDRESS = options["--HOST_ADDRESS"] || options["-h"] || "localhost";
+        var PORT_NUMBER = Number(options["--PORT_NUMBER"] || options["-p"]);
+        var MAX_LOAD_RESOURCES_TRIALS = Number(options["--MAX_LOAD_RESOURCES_TRIALS"] || options["-m"] || 1);
+
         try {
-            build(() => profile, {...options, "--internal": true});
+            if (!fs.existsSync(`profiles/${profile}/package.json`)) {
+                build(() => profile, {...options, "--internal": true});
+            }
+
             register(() => profile, {...options, "--internal": true});
             await prepare(() => profile, {...options, "--internal": true});
 

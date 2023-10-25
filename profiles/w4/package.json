@@ -1,0 +1,15 @@
+{
+    "name": "w4",
+    "version": "1.0.0",
+    "description": "",
+    "main": "",
+    "scripts": {
+        "test": "echo \"test\""
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "cook": "^1.2.3",
+        "cooka": "latest"
+    }
+}
