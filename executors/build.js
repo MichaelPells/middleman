@@ -40,11 +40,11 @@ SET ["ON_INCOMING"] = function (request, response, Default) {
 }
 `
         try {
-            fs.mkdirSync(`profiles/${profile}`);
+            fs.mkdirSync(`profiles/${profile}`, {recursive: true});
             fs.writeFileSync(`profiles/${profile}/package.json`, JSON.stringify(package, undefined, 4));
             fs.writeFileSync(`profiles/${profile}/settings.js`, settings);
-            fs.mkdirSync(`profiles/${profile}/model`);
-            fs.mkdirSync(`profiles/${profile}/public`);
+            fs.mkdirSync(`profiles/${profile}/model`, {recursive: true});
+            fs.mkdirSync(`profiles/${profile}/public`, {recursive: true});
 
             if (options["--internal"]) {
 
