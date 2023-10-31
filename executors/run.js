@@ -17,7 +17,7 @@ module.exports =  async function run (next_arg, options, runner) {
         if (profiles_list.includes(profile)) {
             if (!running_profiles.includes(profile)) {
                 try {
-                    var report = await runner(profile);
+                    var report = await runner(profile, options["--output"]);
                     running_profiles.push(profile);
 
                     console.log(report);

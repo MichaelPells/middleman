@@ -36,7 +36,7 @@ const SETTINGS = {};
 const servers = {};
 const shells = {};
 const sockets = {};
-const callbacks = {};
+const socketed = {};
 const reloaders = {};
 
 function sortIfObject (object) {
@@ -66,12 +66,12 @@ interface.on("connection", (socket) => {
 
     socket.on("init", (socket_id, profile) => {
         if (socket_id == socket.id) {
-            callbacks[profile](socket);
+            socketed[profile](socket);
         }
     });
 });
 
-function runner (profile) {
+function runner (profile, output = "shell") {
     return new Promise((resolve, reject) => {
         try {
 
@@ -102,11 +102,11 @@ function runner (profile) {
             }
 
             function log (message) {
-                sockets[profile].emit("log", message);
+                try {sockets[profile].emit("log", message)} catch (e) {}
             }
             
             function reportError (info, code = null) {
-                sockets[profile].emit("reportError", {info, code});
+                try {sockets[profile].emit("reportError", {info, code})} catch (e) {}
             }
 
             function load_resources(allResources = JSON.parse(fs.readFileSync('resources.json')), url=null, trials=null, req=null, res=null, Input = null) {
@@ -420,41 +420,29 @@ function runner (profile) {
             });
 
             servers[profile] = app.listen(port, host, () => {
-                shells[profile] = child_process.spawn("node interfaces/shell.js", [profile], {
-                    detached: true,
-                    shell: true,
+                // When Server is closed
+                servers[profile].once("close", () => {
+                    try {log("Server Closed")} catch (e) {}
+                    try {sockets[profile].disconnect(true)} catch (e) {}
+                    
+                    running_profiles.indexOf(profile) > -1 && running_profiles.splice(running_profiles.indexOf(profile), 1);
+
+                    delete servers[profile];
+                    delete shells[profile];
+                    delete sockets[profile];
                 });
-
-                shells[profile].exit = function () {
-                    shells[profile].kill();
-                    interface.to(sockets[profile].id).emit("exit");
-                };
-
-                callbacks[profile] = function (socket) {
-                    if (sockets[profile]) {
-                        sockets[profile] = socket;
-                        return;
-                    }
-                    
-                    sockets[profile] = socket;
-
-                    log(`${profile} is online.\n`);
-                    log(`    | Status:    Active${development?" (Development)":""}`);
-                    log(`    | Interface: http://${host}:${port}`);
-                    if (!development) {open(`http://${host}:${port}`)}
                 
-                    // When Server is closed
-                    servers[profile].once("close", () => {
-                        try {log("Server Closed")} catch (e) {}
-                        try {sockets[profile].disconnect(true)} catch (e) {}
-
-                        running_profiles.indexOf(profile) > -1 && running_profiles.splice(running_profiles.indexOf(profile), 1);
-
-                        delete servers[profile];
-                        delete shells[profile];
-                        delete sockets[profile];
+                if (output == "shell") {
+                    shells[profile] = child_process.spawn("node interfaces/shell.js", [profile], {
+                        detached: true,
+                        shell: true,
                     });
-                    
+
+                    shells[profile].exit = function () {
+                        shells[profile].kill();
+                        try {interface.to(sockets[profile].id).emit("exit")} catch (e) {}
+                    };
+
                     // When Shell is closed
                     shells[profile].once("close", (code, signal) => {
                         try {servers[profile].close()} catch (e) {}
@@ -466,6 +454,31 @@ function runner (profile) {
                         
                         if (mode == "execution") {process.exit()}
                     });
+                } else {
+                    shells[profile] = {};
+
+                    shells[profile].exit = function () {
+                        try {interface.to(sockets[profile].id).emit("exit")} catch (e) {}
+
+                        try {servers[profile].close()} catch (e) {}
+                        try {sockets[profile].disconnect(true)} catch (e) {}
+
+                        delete servers[profile];
+                        delete shells[profile];
+                        delete sockets[profile];
+
+                        if (mode == "execution") {process.exit()}
+                    };
+                }
+
+                socketed[profile] = function (socket) {
+                    if (sockets[profile]) {
+                        sockets[profile] = socket;
+                        return;
+                        // Does the on-disconnect function work here???
+                    }
+                    
+                    sockets[profile] = socket;
 
                     // When Socket is closed
                     sockets[profile].on("disconnect", (_) => {
@@ -481,6 +494,11 @@ function runner (profile) {
                         },
                         10000);
                     });
+
+                    log(`${profile} is online.\n`);
+                    log(`    | Status:    Active${development?" (Development)":""}`);
+                    log(`    | Interface: http://${host}:${port}`);
+                    if (!development) {open(`http://${host}:${port}`)}
                 };
 
                 servers[profile].removeAllListeners("error");
@@ -498,7 +516,7 @@ function runner (profile) {
 }
 
 function closer (profile) {
-    try {shells[profile].exit()} catch (e) {}
+    shells[profile].exit()
 }
 
 function reloader (profile) {
