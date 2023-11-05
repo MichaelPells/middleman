@@ -66,16 +66,18 @@ interface.on("connection", (socket) => {
 
     socket.on("init", (socket_id, profile) => {
         if (socket_id == socket.id) {
-            socketed[profile](socket);
+            socketed[profile] && socketed[profile](socket);
         }
     });
 });
 
-function runner (profile, output = "shell") {
+function runner (profile, output = "shell", logTypes = "both") {
     return new Promise((resolve, reject) => {
         try {
 
             var location, settings, remote_server_address, host, port, max_load_resources_trials;
+
+            logTypes = (logTypes == "both" || logTypes === true) ? ["incoming", "outgoing"] : [logTypes];
 
             reloaders[profile] = function () {
                 // LOAD PROFILE SETTINGS
@@ -101,12 +103,28 @@ function runner (profile, output = "shell") {
                 app.use(middleware);
             }
 
-            function log (message) {
-                try {sockets[profile].emit("log", message)} catch (e) {}
+            function status (info, code = null) {
+                try {sockets[profile].emit("status", {info, code})} catch (e) {}
             }
-            
-            function reportError (info, code = null) {
-                try {sockets[profile].emit("reportError", {info, code})} catch (e) {}
+
+            function msg (message) {
+                try {sockets[profile].emit("msg", message)} catch (e) {}
+            }
+
+            function log (message) {
+                if (logTypes.includes(message.type)) {
+                    message = {
+                        time: message.req.startTime,
+                        method: message.req.method,
+                        path: message.req._parsedUrl.pathname,
+                        statusCode: message.statusCode,
+                        statusMessage: message.statusMessage,
+                        responseTime: message.responseTime
+                    }
+                    try {sockets[profile].emit("log", message)} catch (e) {}
+                }
+
+                // Send to transport if enabled
             }
 
             function load_resources(allResources = JSON.parse(fs.readFileSync('resources.json')), url=null, trials=null, req=null, res=null, Input = null) {
@@ -117,11 +135,11 @@ function runner (profile, output = "shell") {
                     var rurl = allResources[n];
                     n += 1;
             
-                    if (development) {log(`    Resource: ${n}.    ${rurl}`)}
+                    if (development) {msg(`    Resource: ${n}.    ${rurl}`)}
             
                     var request = https.get(rurl, (response) => { // All corresponding req options must be sent here as well.
             
-                        reportError(null, "REQUESTSUCCESS");
+                        status(null, "REQUESTSUCCESS");
             
                         if (response.statusCode.toString()[0] == "2") { // Use a more general rule here.
                             var data = Buffer.from("");
@@ -210,7 +228,7 @@ function runner (profile, output = "shell") {
             
                                         fs.writeFile(`${location}/model${entry}/${Input}.json`, Output, (err) => {
                                             if (!err) {
-                                                reportError(null, "WRITESUCCESS");
+                                                status(null, "WRITESUCCESS");
                                                 
                                                 if(req) {send(url, trials, req, res, Input)}
                     
@@ -218,7 +236,7 @@ function runner (profile, output = "shell") {
                                             } else {
                                                 fs.rm(`${location}/public${file}`, () => {})
             
-                                                reportError(err, "WRITEFAIL");
+                                                status(err, "WRITEFAIL");
             
                                                 if(req) {send(url, trials, req, res, Input)}
                     
@@ -226,7 +244,7 @@ function runner (profile, output = "shell") {
                                             }
                                         });
                                     } else {
-                                        reportError(err, "WRITEFAIL");
+                                        status(err, "WRITEFAIL");
             
                                         if(req) {send(url, trials, req, res, Input)}
             
@@ -235,7 +253,7 @@ function runner (profile, output = "shell") {
                                 });
                             });
                         } else {
-                            reportError(`${response.statusCode}:  ${response.statusMessage}`, "UNEXPECTEDRESPONSE")
+                            status(`${response.statusCode}:  ${response.statusMessage}`, "UNEXPECTEDRESPONSE")
             
                             if(req) {send(url, trials, req, res, Input)}
                             
@@ -243,7 +261,7 @@ function runner (profile, output = "shell") {
                         }
                     });
                     request.on('error', (error) => {
-                        reportError(error, "REQUESTFAIL");
+                        status(error, "REQUESTFAIL");
             
                         if(req) {send(url, trials, req, res, Input)}
             
@@ -404,6 +422,16 @@ function runner (profile, output = "shell") {
             }
 
             app.get(/^\/.*/, (req, res) => {
+                req.startTime = process.hrtime();
+                res.on("finish", () => {
+                    req.endTime = process.hrtime();
+                    res.responseTime = process.hrtime(req.startTime);
+
+                    log({
+                        type: "outgoing",
+                        ...res
+                    });
+                });
 
                 var url = req.url;
                 var absoluteURL = `http://${host}:${port}${url}`;
@@ -417,12 +445,22 @@ function runner (profile, output = "shell") {
                 if (!Default.prevent.includes("all")) { // DEFAULT
                     send(req.url, 0, req, res);
                 }
+
+                var message = res;
+                message = {
+                    time: message.req.startTime,
+                    method: message.req.method,
+                    path: message.req._parsedUrl.pathname,
+                    statusCode: message.statusCode,
+                    statusMessage: message.statusMessage,
+                    responseTime: message.responseTime
+                }
             });
 
             servers[profile] = app.listen(port, host, () => {
                 // When Server is closed
                 servers[profile].once("close", () => {
-                    try {log("Server Closed")} catch (e) {}
+                    try {msg("Server Closed")} catch (e) {}
                     try {sockets[profile].disconnect(true)} catch (e) {}
                     
                     running_profiles.indexOf(profile) > -1 && running_profiles.splice(running_profiles.indexOf(profile), 1);
@@ -495,9 +533,9 @@ function runner (profile, output = "shell") {
                         10000);
                     });
 
-                    log(`${profile} is online.\n`);
-                    log(`    | Status:    Active${development?" (Development)":""}`);
-                    log(`    | Interface: http://${host}:${port}`);
+                    msg(`${profile} is online.\n`);
+                    msg(`    | Status:    Active${development?" (Development)":""}`);
+                    msg(`    | Interface: http://${host}:${port}`);
                     if (!development) {open(`http://${host}:${port}`)}
                 };
 

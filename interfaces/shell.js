@@ -73,11 +73,7 @@ socket.on("disconnect", (_) => {
 	10000);
 });
 
-socket.on("log", (message) => {
-    console.log(message);
-})
-
-socket.on("reportError", (message) => {
+socket.on("status", (message) => {
     if (development) {
 		if (message.info) {console.error(message.info)}
 	}
@@ -85,5 +81,12 @@ socket.on("reportError", (message) => {
 		recent_error = [message.info, message.code];
 		error_new_state = true;
 	}
-})
+});
 
+socket.on("msg", (message) => {
+    console.log(message);
+});
+
+socket.on("log", (log) => {
+    console.log(log);
+});
