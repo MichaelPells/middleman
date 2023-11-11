@@ -113,13 +113,23 @@ function runner (profile, output = "shell", logTypes = "both") {
 
             function log (message) {
                 if (logTypes.includes(message.type)) {
+                    function convert (time) {
+                        return time[0] * 1000 + time[1] / 1e6;
+                    }
                     message = {
-                        time: message.req.startTime,
+                        type: message.type,
+                        time: message.req.time,
+                        protocol: message.req.protocol,
+                        httpVersion: message.req.httpVersion,
                         method: message.req.method,
                         path: message.req._parsedUrl.pathname,
-                        statusCode: message.statusCode,
-                        statusMessage: message.statusMessage,
-                        responseTime: message.responseTime
+                        statusCode: message.res.statusCode,
+                        statusMessage: message.res.statusMessage,
+                        userAgent: message.req.headers["user-agent"],
+                        responseTime: convert(message.res.responseTime),
+                        reqSize: message.req.headers["content-length"],
+                        resSize: message.res.get("content-length"),
+                        contentType: message.res.get("content-type")
                     }
                     try {sockets[profile].emit("log", message)} catch (e) {}
                 }
@@ -422,15 +432,13 @@ function runner (profile, output = "shell", logTypes = "both") {
             }
 
             app.get(/^\/.*/, (req, res) => {
+                req.time = new Date().toLocaleString();
                 req.startTime = process.hrtime();
                 res.on("finish", () => {
                     req.endTime = process.hrtime();
                     res.responseTime = process.hrtime(req.startTime);
 
-                    log({
-                        type: "outgoing",
-                        ...res
-                    });
+                    log({type: "outgoing", req, res});
                 });
 
                 var url = req.url;
@@ -449,11 +457,16 @@ function runner (profile, output = "shell", logTypes = "both") {
                 var message = res;
                 message = {
                     time: message.req.startTime,
+                    httpVersion: message.req.httpVersion,
                     method: message.req.method,
                     path: message.req._parsedUrl.pathname,
                     statusCode: message.statusCode,
                     statusMessage: message.statusMessage,
-                    responseTime: message.responseTime
+                    userAgent: message.req.headers["user-agent"],
+                    responseTime: message.responseTime,
+                    reqSize: message.req.headers["content-length"],
+                    resSize: message.get("content-length"),
+                    contentType: message.get("content-type")
                 }
             });
 

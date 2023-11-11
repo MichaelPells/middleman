@@ -88,5 +88,41 @@ socket.on("msg", (message) => {
 });
 
 socket.on("log", (log) => {
-    console.log(log);
+    console.error(`${align(log.time, 23)} ${align(log.method, 4)} ${align(log.path, 20)} ${align(log.protocol.toUpperCase() + "/" + log.httpVersion, 9)} ${align(log.statusCode)} ${align(log.statusMessage, 12)} ${value(log.responseTime, 3, 4, "s")} ${value(log.reqSize, 5, 0, "B")} ${value(log.resSize, 5, 0, "B")} ${align(log.contentType.split(";")[0], 20)} ${align(log.userAgent, 25)}`);
 });
+
+function align (text, length) {
+	if (length) {
+		text = text.toString().padEnd(length);
+		return text.length == length ? text : `${text.slice(0, length - 3)}...`;
+	} else {
+		return text.toString();
+	}
+}
+
+function value (number, length, decimals, unit) {
+	try {
+		var num = number.toString().split(".");
+		var whole = num[0];
+		var dec = num[1] ? num[1] : "";
+		var overflow;
+
+		if (length) {
+			whole = whole.padStart(length, "0");
+
+			if (whole.length > length) {
+				whole = "9".repeat(length);
+				overflow = true;
+			}
+		}
+
+		if (decimals != undefined) {
+			dec = !overflow ? dec.padEnd(decimals, "0") : "9".repeat(decimals);
+			dec = dec.length == decimals ? dec : parseFloat(Number(dec).toPrecision(decimals)).toString().slice(0, decimals);
+		}
+
+		return `${whole}${dec && `.${dec}`}${unit ? unit : ""}${overflow ? "+" : " "}`;
+	} catch (e) {
+		console.log(e)
+	}
+}
