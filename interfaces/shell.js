@@ -4,7 +4,10 @@ import("chalk").then((Chalk) => {
 	const chalk = new Chalk.Chalk();
 	color["outgoing"] = chalk.green;
 	color["incoming"] = chalk.yellow;
-}).catch((_) => {});
+}).catch((_) => {
+	color["outgoing"] = (text) => {return text};
+	color["incoming"] = (text) => {return text};
+});
 
 const profile = process.argv[process.argv.length-1];
 const profile_info = require("../profiles.json")[profile];
