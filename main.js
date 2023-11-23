@@ -6,7 +6,7 @@ console.log('Cisco NetAcad Content Provider (ContentPro) v1.0\n');
 
 const express = require("express");
 const fs = require("fs");
-const https = require("follow-redirects").https;
+const requests = require("follow-redirects");
 const open = require("open");
 const PATH = require("path");
 const mimeType = require("mime-types");
@@ -114,22 +114,26 @@ function runner (profile, output = "shell", logTypes = "both") {
             function log (message) {
                 if (logTypes.includes(message.type)) {
                     function convert (time) {
-                        return time[0] * 1000 + time[1] / 1e6;
+                        return time && time[0] * 1000 + time[1] / 1e6;
                     }
                     message = {
                         type: message.type,
-                        time: message.req.time,
-                        protocol: message.req.protocol,
-                        httpVersion: message.req.httpVersion,
-                        method: message.req.method,
-                        path: message.req._parsedUrl.pathname,
-                        statusCode: message.res.statusCode,
-                        statusMessage: message.res.statusMessage,
-                        userAgent: message.req.headers["user-agent"],
-                        responseTime: convert(message.res.responseTime),
-                        reqSize: message.req.headers["content-length"],
-                        resSize: message.res.get("content-length"),
-                        contentType: message.res.get("content-type")
+                        time: message.request.time,
+                        protocol: message.request.protocol || message.request._options?.protocol.replace(":", ""),
+                        httpVersion: message.request.httpVersion || message.response.httpVersion,
+                        method: message.request.method || message.response.req?.method,
+                        path: message.request._parsedUrl?.pathname || message.request._options?.pathname,
+                        statusCode: message.response.statusCode,
+                        statusMessage: message.response.statusMessage,
+                        userAgent: message.request.headers?.["user-agent"],
+                        responseTime: convert(message.response.responseTime),
+                        reqSize: message.request.headers?.["content-length"],
+                        resSize: message.response.get?.("content-length") || message.response.headers?.["content-length"],
+                        contentType: message.response.get?.("content-type") || message.response.headers?.["content-type"]
+                    }
+                    if (message.type == "incoming") {
+                        console.log(message);
+                        // return;
                     }
                     try {sockets[profile].emit("log", message)} catch (e) {}
                 }
@@ -146,15 +150,25 @@ function runner (profile, output = "shell", logTypes = "both") {
                     n += 1;
             
                     if (development) {msg(`    Resource: ${n}.    ${rurl}`)}
-            
-                    var request = https.get(rurl, (response) => { // All corresponding req options must be sent here as well.
+
+                    var protocol = new URL(rurl).protocol.replace(":", "");
+                    var request = requests.https.get(rurl, (response) => { // All corresponding req options must be sent here as well.
             
                         status(null, "REQUESTSUCCESS");
+
+                        request.time = new Date().toLocaleString();
+                        request.startTime = process.hrtime();
             
                         if (response.statusCode.toString()[0] == "2") { // Use a more general rule here.
                             var data = Buffer.from("");
                             response.on('data', (chunk) => {data = Buffer.concat([data, chunk])});
                             response.on('end', () => {
+console.log(response.req.getHeader("content-length"))
+                                request.endTime = process.hrtime();
+                                response.responseTime = process.hrtime(request.startTime);
+
+                                log({type: "incoming", request: request, response: response});
+
                                 var dat = Object.fromEntries(Object.keys(response)
                                     .sort()
                                     // .filter((key) => {
@@ -166,7 +180,7 @@ function runner (profile, output = "shell", logTypes = "both") {
                                         return [key, response[key]]
                                     })
                                 )
-                                console.log(dat)
+                                // console.log(dat)
                                 
                                 var entry = res.url; // Is there a better approach?
                                 var file = response.req.path;
@@ -264,6 +278,11 @@ function runner (profile, output = "shell", logTypes = "both") {
                             });
                         } else {
                             status(`${response.statusCode}:  ${response.statusMessage}`, "UNEXPECTEDRESPONSE")
+
+                            request.endTime = process.hrtime();
+                            response.responseTime = process.hrtime(request.startTime);
+
+                            log({type: "incoming", request: request, response: response});
             
                             if(req) {send(url, trials, req, res, Input)}
                             
@@ -272,6 +291,8 @@ function runner (profile, output = "shell", logTypes = "both") {
                     });
                     request.on('error', (error) => {
                         status(error, "REQUESTFAIL");
+
+                        // log({type: "incoming", request: request, response: {}});
             
                         if(req) {send(url, trials, req, res, Input)}
             
@@ -438,7 +459,7 @@ function runner (profile, output = "shell", logTypes = "both") {
                     req.endTime = process.hrtime();
                     res.responseTime = process.hrtime(req.startTime);
 
-                    log({type: "outgoing", req, res});
+                    log({type: "outgoing", request: req, response: res});
                 });
 
                 var url = req.url;
@@ -548,7 +569,7 @@ function runner (profile, output = "shell", logTypes = "both") {
 
                     msg(`${profile} is online.\n`);
                     msg(`    | Status:    Active${development?" (Development)":""}`);
-                    msg(`    | Interface: http://${host}:${port}`);
+                    msg(`    | Interface: http://${host}:${port}\n`);
                     if (!development) {open(`http://${host}:${port}`)}
                 };
 

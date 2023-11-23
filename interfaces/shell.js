@@ -99,37 +99,58 @@ socket.on("msg", (message) => {
 });
 
 socket.on("log", (log) => {
-    console.error(color[log.type](`${align(log.time, 23)} ${align(log.method, 4)} ${align(log.path, 20)} ${align(log.protocol.toUpperCase() + "/" + log.httpVersion, 9)} ${align(log.statusCode)} ${align(log.statusMessage, 12)} ${value(log.responseTime, 3, 4, "s")} ${value(log.reqSize, 5, 0, "B")} ${value(log.resSize, 5, 0, "B")} ${align(log.contentType.split(";")[0], 20)} ${align(log.userAgent, 25)}`));
+	try {
+    	console.error(color[log.type](`${align(log.time, 23)} ${align(log.method, 4)} ${align(log.path, 20)} ${align((log.protocol && log.httpVersion) && log.protocol.toUpperCase() + "/" + log.httpVersion, 9)} ${align(log.statusCode)} ${align(log.statusMessage, 12)} ${value(log.responseTime, 3, 4, "s")} ${value(log.reqSize, 5, 0, "B")} ${value(log.resSize, 5, 0, "B")} ${align(log.contentType && log.contentType.split(";")[0], 20)} ${align(log.userAgent, 25)}`));
+	} catch (e) {
+		console.log(e)
+	}
 });
 
 function align (text, length) {
-	if (length) {
-		text = text.toString().padEnd(length);
-		return text.length == length ? text : `${text.slice(0, length - 3)}...`;
+	if (text != undefined) {
+		if (length) {
+			text = text.toString().padEnd(length);
+			return text.length == length ? text : `${text.slice(0, length - 3)}...`;
+		} else {
+			return text.toString();
+		}
 	} else {
-		return text.toString();
+		length = length ? length : 1;
+		return "-".repeat(length < 3 ? length : 3).padEnd(length);
 	}
 }
 
 function value (number, length, decimals, unit) {
-	var num = number.toString().split(".");
-	var whole = num[0];
-	var dec = num[1] ? num[1] : "";
-	var overflow;
+	try {
+		if (number != undefined) {
+			var num = number.toString().split(".");
+			var whole = num[0];
+			var dec = num[1] ? num[1] : "";
+			var overflow;
 
-	if (length) {
-		whole = whole.padStart(length, "0");
+			if (length) {
+				whole = whole.padStart(length, "0");
 
-		if (whole.length > length) {
-			whole = "9".repeat(length);
-			overflow = true;
+				if (whole.length > length) {
+					whole = "9".repeat(length);
+					overflow = true;
+				}
+			}
+
+			if (decimals != undefined) {
+				dec = !overflow ? dec.padEnd(decimals, "0") : "9".repeat(decimals);
+				dec = dec.length == decimals ? dec : parseFloat(Number(dec).toPrecision(decimals)).toString().slice(0, decimals);
+			}
+
+			return `${whole}${dec && `.${dec}`}${unit ? unit : ""}${overflow ? "+" : " "}`;
+		} else {
+			length = length ? length : 1;
+			decimals = decimals ? decimals + 1 : 0;
+			unit = unit ? unit.length : 0;
+			length = length + decimals + unit + 1;
+			return "-".repeat(length < 3 ? length : 3).padEnd(length);
 		}
+	} catch (e) {
+		console.log(e)
 	}
-
-	if (decimals != undefined) {
-		dec = !overflow ? dec.padEnd(decimals, "0") : "9".repeat(decimals);
-		dec = dec.length == decimals ? dec : parseFloat(Number(dec).toPrecision(decimals)).toString().slice(0, decimals);
-	}
-
-	return `${whole}${dec && `.${dec}`}${unit ? unit : ""}${overflow ? "+" : " "}`;
 }
