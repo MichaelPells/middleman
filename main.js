@@ -131,10 +131,7 @@ function runner (profile, output = "shell", logTypes = "both") {
                         resSize: message.response.get?.("content-length") || message.response.headers?.["content-length"],
                         contentType: message.response.get?.("content-type") || message.response.headers?.["content-type"]
                     }
-                    if (message.type == "incoming") {
-                        console.log(message);
-                        // return;
-                    }
+
                     try {sockets[profile].emit("log", message)} catch (e) {}
                 }
 
@@ -291,8 +288,6 @@ console.log(response.req.getHeader("content-length"))
                     });
                     request.on('error', (error) => {
                         status(error, "REQUESTFAIL");
-
-                        // log({type: "incoming", request: request, response: {}});
             
                         if(req) {send(url, trials, req, res, Input)}
             

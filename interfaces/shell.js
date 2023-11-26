@@ -100,7 +100,7 @@ socket.on("msg", (message) => {
 
 socket.on("log", (log) => {
 	try {
-    	console.error(color[log.type](`${align(log.time, 23)} ${align(log.method, 4)} ${align(log.path, 20)} ${align((log.protocol && log.httpVersion) && log.protocol.toUpperCase() + "/" + log.httpVersion, 9)} ${align(log.statusCode)} ${align(log.statusMessage, 12)} ${value(log.responseTime, 3, 4, "s")} ${value(log.reqSize, 5, 0, "B")} ${value(log.resSize, 5, 0, "B")} ${align(log.contentType && log.contentType.split(";")[0], 20)} ${align(log.userAgent, 25)}`));
+    	console.error(color[log.type](`${align(new Date().toLocaleString(), 23)} ${align(log.method, 4)} ${align(log.path, 20)} ${align((log.protocol && log.httpVersion) && log.protocol.toUpperCase() + "/" + log.httpVersion, 9)} ${align(log.statusCode)} ${align(log.statusMessage, 12)} ${value(log.responseTime, 3, 4, "Ms")} ${value(log.reqSize, 5, 0, "B")} ${value(log.resSize, 5, 0, "B")} ${align(log.contentType && log.contentType.split(";")[0], 20)} ${align(log.userAgent, 25)}`));
 	} catch (e) {
 		console.log(e)
 	}
