@@ -1,6 +1,6 @@
 {
     "itn-dl": {
-        "REMOTE_URL": "https://contenthub.netacad.com"
+        "REMOTE_URL": "http://localhost:5000"
     },
     "w3schools": {
         "REMOTE_URL": "https://w3schools.com"

@@ -118,17 +118,18 @@ function runner (profile, output = "shell", logTypes = "both") {
                     }
                     message = {
                         type: message.type,
+                        error: message.error ? true : false,
                         time: message.request.time,
                         protocol: message.request.protocol || message.request._options?.protocol.replace(":", ""),
                         httpVersion: message.request.httpVersion || message.response.httpVersion,
                         method: message.request.method || message.response.req?.method,
                         path: message.request._parsedUrl?.pathname || message.request._options?.pathname,
                         statusCode: message.response.statusCode,
-                        statusMessage: message.response.statusMessage,
+                        statusMessage: message.response.statusMessage || message.error?.code,
                         userAgent: message.request.headers?.["user-agent"],
                         responseTime: convert(message.response.responseTime),
-                        reqSize: message.request.headers?.["content-length"],
-                        resSize: message.response.get?.("content-length") || message.response.headers?.["content-length"],
+                        reqSize: message.request.headers?.["content-length"] || 0,
+                        resSize: message.response.get?.("content-length") || message.response.headers?.["content-length"] || 0,
                         contentType: message.response.get?.("content-type") || message.response.headers?.["content-type"]
                     }
 
@@ -145,11 +146,9 @@ function runner (profile, output = "shell", logTypes = "both") {
                 function load() {
                     var rurl = allResources[n];
                     n += 1;
-            
-                    if (development) {msg(`    Resource: ${n}.    ${rurl}`)}
 
                     var protocol = new URL(rurl).protocol.replace(":", "");
-                    var request = requests.https.get(rurl, (response) => { // All corresponding req options must be sent here as well.
+                    var request = requests.http.get(rurl, (response) => { // All corresponding req options must be sent here as well.
             
                         status(null, "REQUESTSUCCESS");
 
@@ -288,6 +287,7 @@ console.log(response.req.getHeader("content-length"))
                     });
                     request.on('error', (error) => {
                         status(error, "REQUESTFAIL");
+                        log({type: "incoming", request: request, response: {}, error: error});
             
                         if(req) {send(url, trials, req, res, Input)}
             

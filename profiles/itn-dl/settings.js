@@ -4,7 +4,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
 SET ["PROFILE_NAME"] = "itn-dl";
-SET ["REMOTE_URL"] = "https://contenthub.netacad.com";
+SET ["REMOTE_URL"] = "http://localhost:5000";
 SET ["HOST_ADDRESS"] = "localhost"
 SET ["PORT_NUMBER"] = 5001;
 SET ["MAX_LOAD_RESOURCES_TRIALS"] = 1;
